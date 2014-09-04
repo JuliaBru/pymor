@@ -86,6 +86,8 @@ class LaxFriedrichsFlux(NumericalConvectiveFluxInterface):
 
     def evaluate_stage2(self, stage1_data, unit_outer_normals, volumes, mu=None):
         U, F = stage1_data
+        A=(np.sum(np.sum(F, axis=1) * unit_outer_normals, axis=1) * 0.5
+                + (U[..., 0] - U[..., 1]) * (0.5 / self.lxf_lambda)) * volumes
         return (np.sum(np.sum(F, axis=1) * unit_outer_normals, axis=1) * 0.5
                 + (U[..., 0] - U[..., 1]) * (0.5 / self.lxf_lambda)) * volumes
 
@@ -183,6 +185,42 @@ class EngquistOsherFlux(NumericalConvectiveFluxInterface):
         return Fs
 
 
+class LinearGodunovUpwindFlux(NumericalConvectiveFluxInterface):
+    '''Linear Godunuv-Upwind numerical flux.
+
+    Analytical Flux A*u, A \in \R^{m \times m}
+
+    Parameters
+    ----------
+    flux
+        |Function| defining the analytical flux `f`.
+
+    '''
+
+    def __init__(self, flux, flux_matrix):
+        self.flux = flux
+        self.flux_matrix=flux_matrix
+        self.build_parameter_type(inherits=(flux,))
+
+    def evaluate_stage1(self, U, mu=None):
+        return U, U[...,np.newaxis]
+
+    def evaluate_stage2(self, stage1_data, unit_outer_normals, volumes, mu=None):
+        U, F = stage1_data
+
+        A=self.flux_matrix
+        assert A.ndim==2
+        assert A.shape[0]==A.shape[1]
+        w,V=np.linalg.eig(A)
+        wp=(w[...]>0)*w
+        wn=(w[...]<0)*w
+        Apos=np.dot(np.dot(V,np.diag(wp)),np.linalg.inv(V))
+        Aneg=np.dot(np.dot(V,np.diag(wn)),np.linalg.inv(V))
+        Aabs=Apos-Aneg
+        h=np.dot(A,(U[...,0]+U[...,1]))*unit_outer_normals[:,0]-np.dot(Aabs,(U[...,1]-U[...,0]))
+        return 0.5*h
+
+
 class NonlinearAdvectionOperator(OperatorBase):
     '''Nonlinear finite volume advection |Operator|.
 
@@ -255,6 +293,7 @@ class NonlinearAdvectionOperator(OperatorBase):
         assert U.dim == self.dim_source
         mu = self.parse_parameter(mu)
 
+
         ind = xrange(len(U)) if ind is None else ind
         U = U.data
         R = np.zeros((len(ind), self.dim_source))
@@ -291,17 +330,206 @@ class NonlinearAdvectionOperator(OperatorBase):
                 for f, f_d in izip(F_edge, F_dirichlet):
                     f[dirichlet_boundaries, 1] = f_d
 
+
+
             NUM_FLUX = self.numerical_flux.evaluate_stage2(F_edge, unit_outer_normals, VOLS, mu)
 
             if bi.has_neumann:
                 NUM_FLUX[bi.neumann_boundaries(1)] = 0
 
+
+
+
             iadd_masked(Ri, NUM_FLUX, SUPE[:, 0])
             isub_masked(Ri, NUM_FLUX, SUPE[:, 1])
+
+
 
         R /= g.volumes(0)
 
         return NumpyVectorArray(R)
+
+
+
+class AdvectionOperatorNDim(OperatorBase):
+
+    '''Nonlinear finite volume advection |Operator|.
+    for Upwind Schemes for Systems
+    ONED
+
+    The operator is of the form ::
+
+        L(u, mu)(x) = ∇ ⋅ f(u(x), mu) + g(u,x)
+
+
+
+    .. note ::
+        For Neumann boundaries, currently only zero boundary values are implemented.
+
+    Parameters
+    ----------
+    sysdim
+        Dimension of the system
+    grid
+        |Grid| over which to evaluate the operator.
+    boundary_info
+        |BoundaryInfo| determining the Dirichlet and Neumann boundaries.
+    numerical_flux
+        The :class:`NumericalConvectiveFlux <NumericalConvectiveFluxInterface>` to use.
+    low_order_terms
+        Dictionary with |Function| entries determining g(u,x) for each system component.
+    dirichlet_data
+        Dictionary with |Function| entries providing the Dirichlet boundary values for each system component. If `None`, constant-zero
+        boundary is assumed.
+    name
+        The name of the operator.
+    '''
+
+    type_source = type_range = NumpyVectorArray
+    linear = False
+
+    def __init__(self, sysdim, grid, boundary_info, numerical_flux, low_order_terms=None, dirichlet_data=None, name=None):
+        self.grid = grid
+        self.sysdim=sysdim
+        assert grid.dim==1
+        self.boundary_info = boundary_info
+        self.numerical_flux = numerical_flux
+        self.low_order_terms= low_order_terms
+        self.dirichlet_data = dirichlet_data
+        for j in range(sysdim):
+            assert dirichlet_data[j] is None or isinstance(dirichlet_data[j], FunctionInterface)
+        if (isinstance(dirichlet_data[0], FunctionInterface) and boundary_info.has_dirichlet
+            and not dirichlet_data[0].parametric):
+            self._dirichlet_values = dict.fromkeys(range(sysdim))
+            self._dirichlet_values_flux_shaped = dict.fromkeys(range(sysdim))
+            for j in range(sysdim):
+                self._dirichlet_values[j] = self.dirichlet_data[j](grid.centers(1)[boundary_info.dirichlet_boundaries(1)])
+                self._dirichlet_values[j] = self._dirichlet_values[j].ravel()
+                self._dirichlet_values_flux_shaped[j] = self._dirichlet_values[j].reshape((-1, 1))
+
+
+        self.name = name
+        self.build_parameter_type(inherits=(numerical_flux, dirichlet_data[0]))
+        self.dim_source= grid.size(0)
+        self.dim_range=grid.size(0)*self.sysdim
+        self.with_arguments = self.with_arguments.union('numerical_flux_{}'.format(arg)
+                                                        for arg in numerical_flux.with_arguments)
+
+    with_arguments = frozenset(method_arguments(__init__))
+
+    def with_(self, **kwargs):
+        assert 'numerical_flux' not in kwargs or not any(arg.startswith('numerical_flux_') for arg in kwargs)
+        num_flux_args = {arg[len('numerical_flux_'):]: kwargs.pop(arg)
+                         for arg in list(kwargs) if arg.startswith('numerical_flux_')}
+        if num_flux_args:
+            kwargs['numerical_flux'] = self.numerical_flux.with_(**num_flux_args)
+        return self._with_via_init(kwargs)
+
+    def restricted(self, components):
+        source_dofs = np.setdiff1d(np.union1d(self.grid.neighbours(0, 0)[components].ravel(), components),
+                                   np.array([-1], dtype=np.int32),
+                                   assume_unique=True)
+        sub_grid = SubGrid(self.grid, entities=source_dofs)
+        sub_boundary_info = SubGridBoundaryInfo(sub_grid, self.grid, self.boundary_info)
+        op = self.with_(grid=sub_grid, boundary_info=sub_boundary_info, name='{}_restricted'.format(self.name))
+        sub_grid_indices = sub_grid.indices_from_parent_indices(components, codim=0)
+        proj = ComponentProjection(sub_grid_indices, op.dim_range, op.type_range)
+        return Concatenation(proj, op), sub_grid.parent_indices(0)
+
+    def apply(self, U, ind=None, mu=None):
+        for j in range(self.sysdim):
+            assert isinstance(U[j], NumpyVectorArray)
+            assert U[j].dim == self.dim_source
+
+        mu = self.parse_parameter(mu)
+
+        #ind wird gebraucht fuer Zeit-Mehrschrittverfahren?? Hab ich nicht..
+        assert len(U[0])==1
+        #ind = xrange(len(U[0])) if ind is None else ind
+
+        R=np.zeros((self.sysdim,U[0].dim))
+        for j in range(self.sysdim):
+            U[j] = U[j].data
+
+
+
+        g = self.grid
+        bi = self.boundary_info
+        SUPE = g.superentities(1, 0)
+        SUPI = g.superentity_indices(1, 0)
+        assert SUPE.ndim == 2
+        VOLS = g.volumes(1)
+        boundaries = g.boundaries(1)
+        unit_outer_normals = g.unit_outer_normals()[SUPE[:, 0], SUPI[:, 0]]
+
+        if bi.has_dirichlet:
+            dirichlet_boundaries = bi.dirichlet_boundaries(1)
+
+            dirichlet_values=dict.fromkeys(range(self.sysdim))
+            for j in range(self.sysdim):
+                if hasattr(self, '_dirichlet_values'):
+                    dirichlet_values[j] = self._dirichlet_values[j]
+                elif self.dirichlet_data[j] is not None:
+                    dirichlet_values[j] = self.dirichlet_data[j](g.centers(1)[dirichlet_boundaries], mu=mu)
+                else:
+                    dirichlet_values[j] = np.zeros_like(dirichlet_boundaries)
+
+#       for i, j in enumerate(ind): #fuer euler schwachsinn weil ind sowieso 1?
+
+        #Ui = U[j]
+        #Ri = R[i]
+
+
+        Usys=U[0]
+        dirichlet_sys=[dirichlet_values[0]]
+        for k in range(1,self.sysdim):
+            Usys=np.append(Usys,U[k],axis=0) #U.shape=(sysdim,xshape)
+            dirichlet_sys=np.append(dirichlet_sys,[dirichlet_values[k]],axis=0)
+
+
+        F_dirichlet = self.numerical_flux.evaluate_stage1(dirichlet_sys, mu)
+
+
+        F = self.numerical_flux.evaluate_stage1(Usys, mu)
+        F_edge = [f[:,SUPE] for f in F]
+
+        for f in F_edge:
+            f[:,boundaries, 1] = f[:,boundaries, 0]
+        if bi.has_dirichlet:
+            for f, f_d in izip(F_edge, F_dirichlet):
+                f[:,dirichlet_boundaries, 1] = f_d
+
+        NUM_FLUX = self.numerical_flux.evaluate_stage2(F_edge, unit_outer_normals, VOLS, mu)
+
+        if bi.has_neumann:
+            NUM_FLUX[bi.neumann_boundaries(1)] = 0
+
+        if self.low_order_terms is not None:
+            low_order=dict.fromkeys(range(self.sysdim))
+            for j in range(self.sysdim):
+                assert isinstance(self.low_order_terms[j],FunctionInterface)
+                low_order[j]=self.low_order_terms[j](Usys.T)
+
+
+
+        Rout=dict.fromkeys(range(self.sysdim))
+
+        for j in range(self.sysdim):
+            iadd_masked(R[j,...], NUM_FLUX[j,...], SUPE[:, 0])
+            isub_masked(R[j,...], NUM_FLUX[j,...], SUPE[:, 1])
+
+            R[j,...] /= g.volumes(0)
+            if self.low_order_terms is not None:
+                R[j,...]+=low_order[j]
+
+
+
+            Rout[j]=NumpyVectorArray(R[j,...])
+
+        return Rout
+
+
+
 
 
 def nonlinear_advection_lax_friedrichs_operator(grid, boundary_info, flux, lxf_lambda=1.0,
@@ -323,6 +551,11 @@ def nonlinear_advection_engquist_osher_operator(grid, boundary_info, flux, flux_
     '''Instantiate a :class:`NonlinearAdvectionOperator` using :class:`EngquistOsherFlux`.'''
     num_flux = EngquistOsherFlux(flux, flux_derivative, gausspoints=gausspoints, intervals=intervals)
     return NonlinearAdvectionOperator(grid, boundary_info, num_flux, dirichlet_data, name)
+
+def godunov_upwind_operator(sysdim, grid, boundary_info, flux,flux_matrix,low_order_terms, dirichlet_data=None, name=None):
+    '''Instantiate a :class:`NonlinearAdvectionOperatorNDim` using :class:`LinearGodunovUpwindFlux`.'''
+    num_flux=LinearGodunovUpwindFlux(flux,flux_matrix)
+    return AdvectionOperatorNDim(sysdim,  grid, boundary_info, num_flux,low_order_terms, dirichlet_data, name)
 
 
 class LinearAdvectionLaxFriedrichs(NumpyMatrixBasedOperator):

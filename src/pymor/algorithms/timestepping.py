@@ -22,7 +22,9 @@ from __future__ import absolute_import, division, print_function
 
 from pymor.core import ImmutableInterface, abstractmethod
 from pymor.la import VectorArrayInterface
+from pymor.la.numpyvectorarray import NumpyVectorArray
 from pymor.operators import OperatorInterface
+import numpy as np
 
 
 class TimeStepperInterface(ImmutableInterface):
@@ -73,7 +75,7 @@ class TimeStepperInterface(ImmutableInterface):
 
 
 class ImplicitEulerTimeStepper(TimeStepperInterface):
-    '''Implict-Euler time-stepper.
+    '''Implicit-Euler time-stepper.
 
     Solves equations of the form ::
 
@@ -98,7 +100,7 @@ class ImplicitEulerTimeStepper(TimeStepperInterface):
 
 
 class ExplicitEulerTimeStepper(TimeStepperInterface):
-    '''Implict-Euler time-stepper.
+    '''Explict-Euler time-stepper.
 
     Solves equations of the form ::
 
@@ -117,6 +119,28 @@ class ExplicitEulerTimeStepper(TimeStepperInterface):
         if mass is not None:
             raise NotImplementedError
         return explicit_euler(operator, rhs, initial_data, initial_time, end_time, self.nt, mu, num_values)
+
+class ExplicitEulerTimeStepperNDim(TimeStepperInterface):
+    '''Explict-Euler time-stepper.
+
+    Solves equations of the form ::
+
+        M * d_t u + A(u, t) = F(t).
+
+    Parameters
+    ----------
+    nt
+        The number of time-steps the time-stepper will perform.
+    '''
+
+    def __init__(self, nt):
+        self.nt = nt
+
+    def solve(self, sysdim, initial_time, end_time, initial_data, operator, rhs=None, mass=None, mu=None, num_values=None):
+        if mass is not None:
+            raise NotImplementedError
+        return explicit_euler_ndim(sysdim, operator, rhs, initial_data, initial_time, end_time, self.nt, mu, num_values)
+
 
 
 def implicit_euler(A, F, M, U0, t0, t1, nt, mu=None, invert_options=None, num_values=None):
@@ -195,6 +219,7 @@ def explicit_euler(A, F, U0, t0, t1, nt, mu=None, num_values=None):
     if hasattr(A, 'assemble') and not A_time_dep:
         A = A.assemble(mu)
 
+
     dt = (t1 - t0) / nt
     R = A.type_source.empty(A.dim_source, reserve=num_values)
     R.append(U0)
@@ -218,5 +243,67 @@ def explicit_euler(A, F, U0, t0, t1, nt, mu=None, num_values=None):
             U.axpy(dt, F_ass - A.apply(U, mu=mu))
             if n * (num_values / nt) > len(R):
                 R.append(U)
+
+    return R
+
+def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
+    assert isinstance(A, OperatorInterface)
+    assert F is None or isinstance(F, (OperatorInterface, VectorArrayInterface))
+    assert A.dim_source*sysdim == A.dim_range
+    num_values = num_values or nt + 1
+
+    if isinstance(F, OperatorInterface):
+        assert F.dim_range == 1
+        assert F.dim_source == A.dim_source
+        F_time_dep = F.parametric and '_t' in F.parameter_type
+        if not F_time_dep:
+            F_ass = F.as_vector(mu)
+    elif isinstance(F, VectorArrayInterface):
+        assert len(F) == 1
+        assert F.dim == A.dim_source
+        F_time_dep = False
+        F_ass = F
+
+
+    for j in range(1,sysdim):
+        assert isinstance(U0[j], VectorArrayInterface)
+        assert len(U0[j]) == 1
+        assert U0[j].dim == A.dim_source
+
+    A_time_dep = A.parametric and '_t' in A.parameter_type
+    if hasattr(A, 'assemble') and not A_time_dep:
+        A = A.assemble(mu)
+
+
+    dt = (t1 - t0) / nt
+
+    R=U0.copy()
+
+    t = t0
+    U=dict.fromkeys(range(sysdim))
+    for j in range(sysdim):
+        U[j] = NumpyVectorArray(U0[j].copy())
+
+
+    if F is None:
+        for n in xrange(nt):
+            t += dt
+            mu['_t'] = t
+            Ua=A.apply(U.copy(),mu=mu)
+            for j in range(sysdim):
+                U[j].axpy(dt,-Ua[j])
+                if n * (num_values / nt) > len(R[j]):
+                    R[j].append(U[j])
+
+    else:
+        raise(NotImplementedError)
+#        for n in xrange(nt):
+#            t += dt
+#            mu['_t'] = t
+#            if F_time_dep:
+#                F_ass = F.as_vector(mu)
+#            U.axpy(dt, F_ass - A.apply(U, mu=mu))
+#            if n * (num_values / nt) > len(R):
+#                R.append(U)
 
     return R

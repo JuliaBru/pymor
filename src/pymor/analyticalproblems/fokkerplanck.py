@@ -6,11 +6,13 @@
 from __future__ import absolute_import, division, print_function
 import numpy as np
 
+
 from pymor.analyticalproblems.advection import InstationaryAdvectionProblem
 from pymor.core import Unpicklable, inject_sid
 from pymor.domaindescriptions import LineDomain
-from pymor.functions import ConstantFunction, GenericFunction
+from pymor.functions import GenericFunction
 from pymor.parameters.spaces import CubicParameterSpace
+from pymor.analyticalproblems import Legendre
 
 
 class FPProblem(InstationaryAdvectionProblem, Unpicklable):
@@ -36,59 +38,226 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
         The interval in which μ is allowed to vary.
     '''
 
-    def __init__(self, problem='2Beams',sysdim=1):
+    def __init__(self,sysdim, problem='2Pulses'):
 
-        self.m=sysdim
 
-        assert problem in ('2Beams')
 
-        def fp_flux(U):
+        assert problem in ('2Beams','2Pulses')
+
+
+        def fp_flux(U,mu):
             #Matrizen fuer Legendre-Polynome
-            #m=5
+            m=mu['m']
             Minv=np.diag((2.*np.array(range(m+1))+1.)/2.)
             A = np.diag(np.array(range(1,m+1))/(1.+2.*np.array(range(0,m))),1) +np.diag(np.array(range(1,m+1))/(1.+2.*np.array(range(1,m+1))),-1)
-            return np.dot(Minv,A)
+            flux=np.dot(Minv,A)
+            if m == 0:
+                flux=flux[0,0]
 
-        #inject_sid(burgers_flux, str(BurgersProblem) + '.burgers_flux', v)
+            return flux*U
 
-        #def burgers_flux_derivative(U, mu):
-        #    U_exp = mu['exponent'] * (np.sign(U) * np.power(np.abs(U), mu['exponent']-1))
-        #    R = U_exp * v
-        #    return R
-        #inject_sid(burgers_flux_derivative, str(BurgersProblem) + '.burgers_flux_derivative', v)
+        inject_sid(fp_flux, str(FPProblem) + '.fp_flux')
 
-        flux_function = GenericFunction(fp_flux, dim_domain=1, shape_range=(m,),
-                                        name='burgers_flux')
+        flux_function=GenericFunction(fp_flux, dim_domain=1, shape_range=(1,), parameter_type={'m':0})
 
-        #flux_function_derivative = GenericFunction(burgers_flux_derivative, dim_domain=1, shape_range=(1,),
-        #                                           parameter_type={'exponent': 0},
-        #                                           name='burgers_flux')
+
+
+
+        initial_data=dict.fromkeys(range(sysdim))
+        dirichlet_data=dict.fromkeys(range(sysdim))
+
+        if problem == '2Pulses':
+            domain = LineDomain([0, 7])
+            stoptime=7.
+            def dirichlet_data_func_0(x,mu):
+                dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                A=((x[...,0]<=0.)*dl[0] + (x[...,0]>0.)*dr[0])*np.exp(-0.5*(mu['_t']-1)**2)
+                return A
+            dirichlet_data[0]=GenericFunction(dirichlet_data_func_0,dim_domain=1,parameter_type={'m':0,'_t':0})
+
+            if sysdim >= 2:
+                def dirichlet_data_func_1(x,mu):
+                    dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                    A=((x[...,0]<=0.)*dl[1] + (x[...,0]>0.)*dr[1])*np.exp(-0.5*(mu['_t']-1)**2)
+                    return A
+                dirichlet_data[1]=GenericFunction(dirichlet_data_func_1,dim_domain=1,parameter_type={'m':0,'_t':0})
+
+                if sysdim >= 3:
+                    def dirichlet_data_func_2(x,mu):
+                        dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                        A=((x[...,0]<=0.)*dl[2] + (x[...,0]>0.)*dr[2])*np.exp(-0.5*(mu['_t']-1)**2)
+                        return A
+                    dirichlet_data[2]=GenericFunction(dirichlet_data_func_2,dim_domain=1,parameter_type={'m':0,'_t':0})
+
+                    if sysdim >=4:
+                        def dirichlet_data_func_3(x,mu):
+                            dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                            A=((x[...,0]<=0.)*dl[3] + (x[...,0]>0.)*dr[3])*np.exp(-0.5*(mu['_t']-1)**2)
+                            return A
+                        dirichlet_data[3]=GenericFunction(dirichlet_data_func_3,dim_domain=1,parameter_type={'m':0,'_t':0})
+
+                        if sysdim >=5:
+                            def dirichlet_data_func_4(x,mu):
+                                dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                A=((x[...,0]<=0.)*dl[4] + (x[...,0]>0.)*dr[4])*np.exp(-0.5*(mu['_t']-1)**2)
+                                return A
+                            dirichlet_data[4]=GenericFunction(dirichlet_data_func_4,dim_domain=1,parameter_type={'m':0,'_t':0})
+
+                            if sysdim >=6:
+                                def dirichlet_data_func_5(x,mu):
+                                    dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                    A=((x[...,0]<=0.)*dl[5] + (x[...,0]>0.)*dr[5])*np.exp(-0.5*(mu['_t']-1)**2)
+                                    return A
+                                dirichlet_data[5]=GenericFunction(dirichlet_data_func_5,dim_domain=1,parameter_type={'m':0,'_t':0})
+
+                                if sysdim >=7:
+                                    def dirichlet_data_func_6(x,mu):
+                                        dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                        A=((x[...,0]<=0.)*dl[6] + (x[...,0]>0.)*dr[6])*np.exp(-0.5*(mu['_t']-1)**2)
+                                        return A
+                                    dirichlet_data[6]=GenericFunction(dirichlet_data_func_6,dim_domain=1,parameter_type={'m':0,'_t':0})
+
+                                    if sysdim >=8:
+                                        def dirichlet_data_func_7(x,mu):
+                                            dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                            A=((x[...,0]<=0.)*dl[7] + (x[...,0]>0.)*dr[7])*np.exp(-0.5*(mu['_t']-1)**2)
+                                            return A
+                                        dirichlet_data[7]=GenericFunction(dirichlet_data_func_7,dim_domain=1,parameter_type={'m':0,'_t':0})
+            def initial_data_1(x):
+                return x[...,0]*0+10.**(-4)
+            def initial_data_z(x):
+                return x[...,0]*0
+            initial_data[0]=GenericFunction(initial_data_1,dim_domain=1)
+            for j in range(1,sysdim):
+                initial_data[j]=GenericFunction(initial_data_z, dim_domain=1)
+            low_order=None
+
+
 
         if problem == '2Beams':
-            def initial_data(x):
-                return  10.**(-4)+x[...,0]*0
-            # return 0.5 * (np.sin(2 * np.pi * x[..., 0]) + 1.)
-            inject_sid(initial_data, str(FPProblem) + '.initial_data_2Beams')
-            dirichlet_data = ConstantFunction(dim_domain=1, value=100.)
-        #else:
-        #    def initial_data(x):
-        #        return (x[..., 0] >= 0.5) * (x[..., 0] <= 1) * 1
-        #    inject_sid(initial_data, str(BurgersProblem) + '.initial_data_bump')
-        #    dirichlet_data = ConstantFunction(dim_domain=1, value=0)
+            absorb=dict.fromkeys(range(sysdim))
+            domain = LineDomain([-0.5, 0.5])
+            stoptime=4.
+            def dirichlet_data_func_0(x,mu):
+                dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                A=((x[...,0]<=0.)*dl[0] + (x[...,0]>0.)*dr[0])
+                return A
+            def absorb_func_0(u):
+                return 4.*u[:,0]
+            dirichlet_data[0]=GenericFunction(dirichlet_data_func_0,dim_domain=1,parameter_type={'m':0,'_t':0})
+            absorb[0]=GenericFunction(absorb_func_0,dim_domain=sysdim)
 
-        initial_data = GenericFunction(initial_data, dim_domain=1)
+            if sysdim >= 2:
+                def dirichlet_data_func_1(x,mu):
+                    dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                    A=((x[...,0]<=0.)*dl[1] + (x[...,0]>0.)*dr[1])
+                    return A
+                def absorb_func_1(u):
+                    return 4.*u[:,1]
+                dirichlet_data[1]=GenericFunction(dirichlet_data_func_1,dim_domain=1,parameter_type={'m':0,'_t':0})
+                absorb[1]=GenericFunction(absorb_func_1,dim_domain=sysdim)
+
+                if sysdim >= 3:
+                    def dirichlet_data_func_2(x,mu):
+                        dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                        A=((x[...,0]<=0.)*dl[2] + (x[...,0]>0.)*dr[2])
+                        return A
+                    def absorb_func_2(u):
+                        return 4.*u[:,2]
+                    dirichlet_data[2]=GenericFunction(dirichlet_data_func_2,dim_domain=1,parameter_type={'m':0,'_t':0})
+                    absorb[2]=GenericFunction(absorb_func_2,dim_domain=sysdim)
+
+                    if sysdim >=4:
+                        def dirichlet_data_func_3(x,mu):
+                            dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                            A=((x[...,0]<=0.)*dl[3] + (x[...,0]>0.)*dr[3])
+                            return A
+                        def absorb_func_3(u):
+                            return 4.*u[:,3]
+                        dirichlet_data[3]=GenericFunction(dirichlet_data_func_3,dim_domain=1,parameter_type={'m':0,'_t':0})
+                        absorb[3]=GenericFunction(absorb_func_3,dim_domain=sysdim)
+
+                        if sysdim >=5:
+                            def dirichlet_data_func_4(x,mu):
+                                dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                A=((x[...,0]<=0.)*dl[4] + (x[...,0]>0.)*dr[4])
+                                return A
+                            def absorb_func_4(u):
+                                return 4.*u[:,4]
+                            dirichlet_data[4]=GenericFunction(dirichlet_data_func_4,dim_domain=1,parameter_type={'m':0,'_t':0})
+                            absorb[4]=GenericFunction(absorb_func_4,dim_domain=sysdim)
+
+                            if sysdim >=6:
+                                def dirichlet_data_func_5(x,mu):
+                                    dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                    A=((x[...,0]<=0.)*dl[5] + (x[...,0]>0.)*dr[5])
+                                    return A
+                                def absorb_func_5(u):
+                                    return 4.*u[:,5]
+                                dirichlet_data[5]=GenericFunction(dirichlet_data_func_5,dim_domain=1,parameter_type={'m':0,'_t':0})
+                                absorb[5]=GenericFunction(absorb_func_5,dim_domain=sysdim)
+
+                                if sysdim >=7:
+                                    def dirichlet_data_func_6(x,mu):
+                                        dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                        A=((x[...,0]<=0.)*dl[6] + (x[...,0]>0.)*dr[6])
+                                        return A
+                                    def absorb_func_6(u):
+                                        return 4.*u[:,6]
+                                    dirichlet_data[6]=GenericFunction(dirichlet_data_func_6,dim_domain=1,parameter_type={'m':0,'_t':0})
+                                    absorb[6]=GenericFunction(absorb_func_6,dim_domain=sysdim)
+
+                                    if sysdim >=8:
+                                        def dirichlet_data_func_7(x,mu):
+                                            dl,dr=Legendre.Sysdirichlet(100,mu['m'])
+                                            A=((x[...,0]<=0.)*dl[7] + (x[...,0]>0.)*dr[7])
+                                            return A
+                                        def absorb_func_7(u):
+                                            return 4.*u[:,7]
+                                        dirichlet_data[7]=GenericFunction(dirichlet_data_func_7,dim_domain=1,parameter_type={'m':0,'_t':0})
+                                        absorb[7]=GenericFunction(absorb_func_7,dim_domain=sysdim)
+            def initial_data_1(x):
+                return x[...,0]*0+10.**(-4)
+            def initial_data_z(x):
+                return x[...,0]*0
+            initial_data[0]=GenericFunction(initial_data_1,dim_domain=1)
+            for j in range(1,sysdim):
+                initial_data[j]=GenericFunction(initial_data_z, dim_domain=1)
+
+            low_order=absorb
 
 
-        domain = LineDomain([-0.5, 0.5])
+
+
+ #       for j in range(3):
+ #           str='initial_data'+str(j)
+ #           def
+
+
+        flux_matrix=Legendre.Sysmatrix(100,sysdim)
+
+
+
+
+
+        #dirichlet_data=GenericFunction(dirichlet_data,dim_domain=1,parameter_type={'m':0})
+
+
+
 
         super(FPProblem, self).__init__(domain=domain,
                                              rhs=None,
                                              flux_function=flux_function,
+                                             #low_order=low_order,
                                              initial_data=initial_data,
                                              dirichlet_data=dirichlet_data,
-                                             T=4, name='FPProblem')
+                                             T=stoptime, name='FPProblem')
 
-        self.parameter_space = CubicParameterSpace({'mu' : 0.},minimum=0., maximum=1.)
+        self.parameter_space = CubicParameterSpace({'m' : 0},minimum=0, maximum=20)
+        self.parameter_range=(0,20)
+        self.flux_matrix=flux_matrix
+        self.low_order=low_order
+
 
 
 

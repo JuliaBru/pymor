@@ -289,3 +289,155 @@ class InstationaryDiscretization(DiscretizationBase):
         U0 = self.initial_data.as_vector(mu)
         return self.time_stepper.solve(operator=self.operator, rhs=self.rhs, initial_data=U0, mass=self.mass,
                                        initial_time=0, end_time=self.T, mu=mu, num_values=self.num_values)
+
+
+class InstationaryDiscretizationNDim(DiscretizationBase):
+    '''Generic class for discretizations of stationary problems.
+
+    This class describes instationary problems given by the equations::
+
+        M * ∂_t u(t, μ) + L(u(μ), t, μ) = F(t, μ)
+                                u(0, μ) = u_0(μ)
+
+    for t in [0,T], where L is a (possibly) non-linear time-dependent
+    |Operator|, F is a time-dependent linear |Functional|, and u_0 the
+    initial data. The mass operator is assumed to be linear,
+    time-independent and |Parameter|-independent.
+
+    Parameters
+    ----------
+    T
+        The end-time T.
+    initial_data
+        The initial data u_0. Either a |VectorArray| of length 1 or
+        (for the |Parameter|-dependent case) a vector-like |Operator|
+        (i.e. a linear |Operator| with `dim_source == 1`).
+    operator
+        The |Operator| L.
+    rhs
+        The |Functional| F.
+    mass
+        The mass |Operator| `M`. If `None` the identity is assumed.
+    time_stepper
+        T time-stepper to be used by :meth:`solve`. Has to satisfy
+        the :class:`~pymor.algorithms.timestepping.TimeStepperInterface`.
+    num_values
+        The number of returned vectors of the solution trajectory. If `None`, each
+        intermediate vector that is calculated is returned.
+    products
+        A dict of product |Operators| defined on the discrete space the
+        problem is posed on. For each product a corresponding norm
+        is added as a method of the discretization.
+    parameter_space
+        The |ParameterSpace| for which the discrete problem is posed.
+    estimator
+        An error estimator for the problem. This can be any object with
+        an `estimate(U, mu, discretization)` method. If `estimator` is
+        not `None` an `estimate(U, mu)` method is added to the
+        discretization.
+    visualizer
+        A visualizer for the problem. This can be any object with
+        a `visualize(U, discretization, ...)` method. If `visualizer`
+        is not `None` a `visualize(U, *args, **kwargs)` method is added
+        to the discretization, which forwards its arguments to the
+        visualizer's `visualize` method.
+    cache_region
+        `None` or name of the cache region to use. See
+        :mod:`pymor.core.cache`.
+    name
+        Name of the discretization.
+
+    Attributes
+    ----------
+    T
+        The end-time.
+    initial_data
+        The intial data u_0 given by a vector-like |Operator|. Synonymous
+        for `vector_operators['initial_data']`.
+    operator
+        The |Operator| L. Synonymous for `operators['operator']`.
+    rhs
+        The |Functional| F. Synonymous for `functionals['rhs']`.
+    mass
+        The mass operator M. Synonymous for `operators['mass']`.
+    time_stepper
+        The provided time-stepper.
+    '''
+
+    sid_ignore = ('visualizer', 'cache_region', 'name')
+
+    def __init__(self, sysdim, T, initial_data, operator, rhs=None, mass=None, time_stepper=None, num_values=None,
+                 products=None, parameter_space=None, estimator=None, visualizer=None, cache_region='disk',
+                 name=None):
+        for j in range(sysdim):
+            assert isinstance(initial_data[j], (VectorArrayInterface, OperatorInterface))
+            assert not isinstance(initial_data[j], OperatorInterface) or initial_data[j].dim_source == 1
+            if isinstance(initial_data[j], VectorArrayInterface):
+                initial_data[j] = VectorOperator(initial_data[j], name='initial_data')
+        assert isinstance(operator, OperatorInterface)
+        assert rhs is None or isinstance(rhs, OperatorInterface) and rhs.linear
+        assert mass is None or isinstance(mass, OperatorInterface) and mass.linear
+
+        assert isinstance(time_stepper, TimeStepperInterface)
+        #assert operator.dim_source == operator.dim_range == initial_data.dim_range
+        assert rhs is None or rhs.dim_source == operator.dim_source and rhs.dim_range == 1
+        assert mass is None or mass.dim_source == mass.dim_range == operator.dim_source
+
+        operators = {'operator': operator, 'mass': mass}
+        functionals = {'rhs': rhs}
+        vector_operators = {'initial_data': initial_data}
+        super(InstationaryDiscretizationNDim, self).__init__(operators=operators, functionals=functionals,
+                                                         vector_operators=vector_operators,
+                                                         products=products, estimator=estimator,
+                                                         visualizer=visualizer, cache_region=cache_region, name=name)
+        self.sysdim=sysdim
+        self.T = T
+        self.dim_solution = operator.dim_source
+        self.type_solution = operator.type_source
+        self.initial_data = initial_data
+        self.operator = operator
+        self.rhs = rhs
+        self.mass = mass
+        self.time_stepper = time_stepper
+        self.num_values = num_values
+        self.build_parameter_type(inherits=(operator, rhs, mass), provides={'_t': 0})
+        self.parameter_space = parameter_space
+
+        if hasattr(time_stepper, 'nt'):
+            self.with_arguments = self.with_arguments.union({'time_stepper_nt'})
+
+    with_arguments = frozenset(method_arguments(__init__)).union({'operators', 'functionals', 'vector_operators'})
+
+    def with_(self, **kwargs):
+        assert set(kwargs.keys()) <= self.with_arguments
+        assert 'operators' not in kwargs or kwargs['operators'].viewkeys() <= {'operator', 'mass'}
+        assert 'functionals' not in kwargs or kwargs['functionals'].viewkeys() <= {'rhs'}
+        assert 'vector_operators' not in kwargs or kwargs['vector_operators'].viewkeys() <= {'initial_data'}
+        assert 'operators' not in kwargs or not set(kwargs['operators']).intersection(kwargs.viewkeys())
+        assert 'functionals' not in kwargs or not set(kwargs['functionals']).intersection(kwargs.viewkeys())
+        assert 'vector_operators' not in kwargs or not set(kwargs['vector_operators']).intersection(kwargs.viewkeys())
+        assert 'time_stepper_nt' not in kwargs or 'time_stepper' not in kwargs
+        if 'operators' in kwargs:
+            kwargs.update(kwargs.pop('operators'))
+        if 'functionals' in kwargs:
+            kwargs.update(kwargs.pop('functionals'))
+        if 'vector_operators' in kwargs:
+            kwargs.update(kwargs.pop('vector_operators'))
+        if 'time_stepper_nt' in kwargs:
+            kwargs['time_stepper'] = self.time_stepper.with_(nt=kwargs.pop('time_stepper_nt'))
+
+        return self._with_via_init(kwargs)
+
+    def _solve(self, mu=None):
+        mu = self.parse_parameter(mu).copy() if mu is not None else Parameter({})
+
+        # explicitly checking if logging is disabled saves the expensive str(mu) call
+        if not self.logging_disabled:
+            self.logger.info('Solving {} for {} ...'.format(self.name, mu))
+
+        mu['_t'] = 0
+        U0=dict.fromkeys(range(self.sysdim))
+        for j in range(self.sysdim):
+            U0[j] = self.initial_data[j].as_vector(mu)
+        return self.time_stepper.solve(self.sysdim, operator=self.operator, rhs=self.rhs, initial_data=U0, mass=self.mass,
+                                       initial_time=0, end_time=self.T, mu=mu, num_values=self.num_values)
