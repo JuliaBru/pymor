@@ -19,6 +19,7 @@ from pymor.operators.fv import (nonlinear_advection_lax_friedrichs_operator,
                                 nonlinear_advection_simplified_engquist_osher_operator,
                                 godunov_upwind_operator,
                                 L2Product, L2ProductFunctional)
+from pymor.parameters.base import Parameter
 
 
 def discretize_nonlinear_instationary_advection_fv(analytical_problem, diameter=None, nt=100, num_flux='lax_friedrichs',
@@ -147,7 +148,7 @@ def discretize_nonlinear_instationary_advection_fv(analytical_problem, diameter=
 
 
 
-def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysdim, diameter=None, nt=100, num_flux='godunov_upwind',
+def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysdim, diameter=None, CFL=1, num_flux='godunov_upwind',
                                                    num_values=None,
                                                    domain_discretizer=None, grid=None, boundary_info=None):
     '''Discretizes an |InstationaryAdvectionProblem| using the finite volume method.
@@ -246,11 +247,22 @@ def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysd
 #    else:
 
     I=dict.fromkeys(range(sysdim))
+#    for j in range(sysdim):
+#        I[j] = p.initial_data[j].evaluate(grid.quadrature_points(0, order=2)).squeeze()
+#        I[j] = np.sum(I[j] * grid.reference_element.quadrature(order=2)[1], axis=1) * (1. / grid.reference_element.volume)
+#        I[j] = NumpyVectorArray(I[j], copy=False)
+#        inject_sid(I[j], __name__ + '.discretize_nonlinear_instationary_advection_fv_ndim.initial_data', p.initial_data, grid)
+    #build_parameter_type({'komp':0})
+    mu=Parameter({'komp':0})
     for j in range(sysdim):
-        I[j] = p.initial_data[j].evaluate(grid.quadrature_points(0, order=2)).squeeze()
-        I[j] = np.sum(I[j] * grid.reference_element.quadrature(order=2)[1], axis=1) * (1. / grid.reference_element.volume)
+        mu['komp']=j
+        I[j]=p.initial_data.evaluate(grid.quadrature_points(0,order=2),mu).squeeze()
+        I[j]=np.sum(I[j] * grid.reference_element.quadrature(order=2)[1], axis=1) * (1. / grid.reference_element.volume)
         I[j] = NumpyVectorArray(I[j], copy=False)
         inject_sid(I[j], __name__ + '.discretize_nonlinear_instationary_advection_fv_ndim.initial_data', p.initial_data, grid)
+    #build_parameter_type({'komp':0})
+
+    #Ihelp=p.initial_data.evaluate(grid.quadrature_points(0,order=2),mu=sysdim)
 
     products = {'l2': L2Product(grid, boundary_info)}
     if grid.dim == 2:
@@ -260,6 +272,11 @@ def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysd
     else:
         visualizer = None
     parameter_space = p.parameter_space if hasattr(p, 'parameter_space') else None
+
+    dx=grid._width
+    dt=CFL*dx
+    nt=int(np.ceil(p.T/dt))
+
     time_stepper = ExplicitEulerTimeStepperNDim(nt=nt)
 
 

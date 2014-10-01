@@ -396,20 +396,22 @@ class AdvectionOperatorNDim(OperatorBase):
         self.numerical_flux = numerical_flux
         self.low_order_terms= low_order_terms
         self.dirichlet_data = dirichlet_data
-        for j in range(sysdim):
-            assert dirichlet_data[j] is None or isinstance(dirichlet_data[j], FunctionInterface)
-        if (isinstance(dirichlet_data[0], FunctionInterface) and boundary_info.has_dirichlet
-            and not dirichlet_data[0].parametric):
-            self._dirichlet_values = dict.fromkeys(range(sysdim))
-            self._dirichlet_values_flux_shaped = dict.fromkeys(range(sysdim))
-            for j in range(sysdim):
-                self._dirichlet_values[j] = self.dirichlet_data[j](grid.centers(1)[boundary_info.dirichlet_boundaries(1)])
-                self._dirichlet_values[j] = self._dirichlet_values[j].ravel()
-                self._dirichlet_values_flux_shaped[j] = self._dirichlet_values[j].reshape((-1, 1))
+#        for j in range(sysdim):
+#            assert dirichlet_data[j] is None or isinstance(dirichlet_data[j], FunctionInterface)
+#        for j in range(sysdim):
+        assert dirichlet_data is None or isinstance(dirichlet_data, FunctionInterface)
+        #if (isinstance(dirichlet_data[0], FunctionInterface) and boundary_info.has_dirichlet
+        #    and not dirichlet_data[0].parametric):
+        #    self._dirichlet_values = dict.fromkeys(range(sysdim))
+        #    self._dirichlet_values_flux_shaped = dict.fromkeys(range(sysdim))
+        #    for j in range(sysdim):
+        #        self._dirichlet_values[j] = self.dirichlet_data[j](grid.centers(1)[boundary_info.dirichlet_boundaries(1)])
+        #        self._dirichlet_values[j] = self._dirichlet_values[j].ravel()
+        #        self._dirichlet_values_flux_shaped[j] = self._dirichlet_values[j].reshape((-1, 1))
 
 
         self.name = name
-        self.build_parameter_type(inherits=(numerical_flux, dirichlet_data[0]))
+        self.build_parameter_type(inherits=(numerical_flux, dirichlet_data))
         self.dim_source= grid.size(0)
         self.dim_range=grid.size(0)*self.sysdim
         self.with_arguments = self.with_arguments.union('numerical_flux_{}'.format(arg)
@@ -467,10 +469,11 @@ class AdvectionOperatorNDim(OperatorBase):
 
             dirichlet_values=dict.fromkeys(range(self.sysdim))
             for j in range(self.sysdim):
+                mu['komp']=j
                 if hasattr(self, '_dirichlet_values'):
                     dirichlet_values[j] = self._dirichlet_values[j]
-                elif self.dirichlet_data[j] is not None:
-                    dirichlet_values[j] = self.dirichlet_data[j](g.centers(1)[dirichlet_boundaries], mu=mu)
+                elif self.dirichlet_data is not None:
+                    dirichlet_values[j] = self.dirichlet_data(g.centers(1)[dirichlet_boundaries], mu=mu)
                 else:
                     dirichlet_values[j] = np.zeros_like(dirichlet_boundaries)
 
@@ -504,11 +507,17 @@ class AdvectionOperatorNDim(OperatorBase):
         if bi.has_neumann:
             NUM_FLUX[bi.neumann_boundaries(1)] = 0
 
+
+
         if self.low_order_terms is not None:
+            x=g.quadrature_points(0,order=1)
+            xu=np.append(x[...,0],Usys.T,axis=1)
+
             low_order=dict.fromkeys(range(self.sysdim))
             for j in range(self.sysdim):
-                assert isinstance(self.low_order_terms[j],FunctionInterface)
-                low_order[j]=self.low_order_terms[j](Usys.T)
+                mu['komp']=j
+                assert isinstance(self.low_order_terms,FunctionInterface)
+                low_order[j]=self.low_order_terms.evaluate(xu,mu)
 
 
 

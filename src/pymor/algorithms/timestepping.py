@@ -248,24 +248,31 @@ def explicit_euler(A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
 def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
     assert isinstance(A, OperatorInterface)
-    assert F is None or isinstance(F, (OperatorInterface, VectorArrayInterface))
+
     assert A.dim_source*sysdim == A.dim_range
     num_values = num_values or nt + 1
 
+
+    F_ass=dict.fromkeys(range(sysdim))
+
+    assert F is None or isinstance(F, (OperatorInterface))
     if isinstance(F, OperatorInterface):
         assert F.dim_range == 1
         assert F.dim_source == A.dim_source
         F_time_dep = F.parametric and '_t' in F.parameter_type
         if not F_time_dep:
-            F_ass = F.as_vector(mu)
-    elif isinstance(F, VectorArrayInterface):
-        assert len(F) == 1
-        assert F.dim == A.dim_source
-        F_time_dep = False
-        F_ass = F
+            for j in range(sysdim):
+                mu['komp']=j
+                F_ass[j] = F.as_vector(mu)
 
 
-    for j in range(1,sysdim):
+
+    #elif isinstance(F, VectorArrayInterface):
+    #    assert len(F) == 1
+    #    assert F[j].dim == A.dim_source
+    #    F_time_dep[j] = False
+    #    F_ass[j] = F[j]
+    for j in range(sysdim):
         assert isinstance(U0[j], VectorArrayInterface)
         assert len(U0[j]) == 1
         assert U0[j].dim == A.dim_source
@@ -280,30 +287,44 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
     R=U0.copy()
 
     t = t0
+    tvec=np.array(t0)
     U=dict.fromkeys(range(sysdim))
     for j in range(sysdim):
         U[j] = NumpyVectorArray(U0[j].copy())
 
 
+
     if F is None:
         for n in xrange(nt):
             t += dt
+            print(t)
             mu['_t'] = t
             Ua=A.apply(U.copy(),mu=mu)
+            #if n * (num_values / nt) > len(R[0]):
+            tvec=np.append(tvec,t)
             for j in range(sysdim):
                 U[j].axpy(dt,-Ua[j])
-                if n * (num_values / nt) > len(R[j]):
-                    R[j].append(U[j])
+            #    if n * (num_values / nt) > len(R[j]):
+                R[j].append(U[j])
+
 
     else:
-        raise(NotImplementedError)
-#        for n in xrange(nt):
-#            t += dt
-#            mu['_t'] = t
-#            if F_time_dep:
-#                F_ass = F.as_vector(mu)
-#            U.axpy(dt, F_ass - A.apply(U, mu=mu))
-#            if n * (num_values / nt) > len(R):
-#                R.append(U)
+        for n in xrange(nt):
+            t += dt
+            print(t)
+            mu['_t'] = t
+            if F_time_dep:
+                for j in range(sysdim):
+                    mu['komp']=j
+                    F_ass[j] = F.as_vector(mu)
 
-    return R
+            Ua=A.apply(U.copy(),mu=mu)
+            #if n * (num_values / nt) > len(R[0]):
+            tvec=np.append(tvec,t)
+            for j in range(sysdim):
+                U[j].axpy(dt,F_ass[j] -Ua[j])
+            #    if n * (num_values / nt) > len(R[j]):
+                R[j].append(U[j])
+
+
+    return R,tvec

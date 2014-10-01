@@ -1,28 +1,71 @@
 __author__ = 'j_brun16'
 import numpy as np
 from pymordemos.rb_to_fp import rb_solutions
+from pymor.operators import cg
+from pymor.la import NumpyVectorArray
+from pymor.functions import GenericFunction
 
 
 def legpol(V,m):
-    L=np.array(np.zeros([np.shape(V)[0],m+1]))
+    L=np.array(np.zeros([np.shape(V)[0],m]))
     L[:,0] = 1.
-    if m>=1:
+    if m>=2:
         L[:,1] = V
-        if m>=2:
+        if m>=3:
             L[:,2] = 1./2.*(3.*V**2.-1.)
-            if m>=3:
-                for i in range(3,m+1):
+            if m>=4:
+                for i in range(3,m):
                     L[:,i] = 1./i*((2.*i-1.)*V*L[:,i-1]-(i-1.)*L[:,i-2])
-                for i in range(m+1):
-                    L[:,i]*=np.sqrt((2.*i+1.)/2.)
+    for i in range(m):
+        L[:,i]*=np.sqrt((2.*i+1.)/2.)
     return L
 
-def Godunov(A):
-    assert A.ndim==2
-    assert A.shape[0]==A.shape[1]
-    W,V=np.linalg.eig(A)
-    WV=[W,V]
-    DW=DW.sort(axis=0)
+def legpolchar(V,m):
+    L=np.array(np.zeros((m,)+np.shape(V)))
+    L[0,...] = 1.
+    if m>=2:
+        L[1,...] = V
+        if m>=3:
+            L[2,...] = 1./2.*(3.*V**2.-1.)
+            if m>=4:
+                for i in range(3,m):
+                    L[i,...] = 1./i*((2.*i-1.)*V*L[i-1,...]-(i-1.)*L[i-2,...])
+    for i in range(m):
+        L[i,...]*=np.sqrt((2.*i+1.)/2.)*(V>=-1)*(V<=1)
+    return NumpyVectorArray(L)
+
+
+
+#discr=rb_solutions(0,1000,[-1,1])
+#grid=discr.visualizer.grid
+#a=grid.quadrature_points(1,order=2)
+#L=legpolchar(grid.quadrature_points(1,order=2)[:,0,0],5)
+#discr.visualize(L)
+#prod=discr.l2_product
+#M=prod.apply2(L,L,False)
+#diff=discr.h1_product
+#S=diff.apply2(L,L,False)
+#absorb=discr.absorb_product
+#A=absorb.apply2(L,L,False)
+#print('M:')
+#print(M)
+#print('S:')
+#print(S)
+#print('A:')
+#print(A)
+
+
+def LegendreMatrices(n,m):
+    discr=rb_solutions(0,n,[-1,1])
+    grid=discr.visualizer.grid
+    L=legpolchar(grid.quadrature_points(1,order=2)[:,0,0],m)
+    mprod=discr.l2_product
+    M=mprod.apply2(L,L,False)
+    dprod=discr.absorb_product
+    D=dprod.apply2(L,L,False)
+    sprod=discr.h1_product
+    S=sprod.apply2(L,L,False)
+    return M,D,S
 
 
 def myl2prod(U,V,h):
@@ -38,33 +81,15 @@ def syscond(V,C,h,m): #V=V-Stuetzstellen (Grid), C=Vektor mit Auswertungen auf G
         cond[i]=myl2prod(Leg[:,i],C,h)
     return cond
 
-def sysmatr(V,h,m):
-    Leg=legpol(V,m)
-    Matr=np.zeros([m,m])
-    for i in range(m):
-        for j in range(m):
-            Matr[i,j]=myl2prod(Leg[:,i]*V,Leg[:,j],h)
-    return Matr
-
-def massmatr(V,h,m):
-    Leg=legpol(V,m)
-    Matr=np.zeros([m,m])
-    for i in range(m):
-        for j in range(m):
-            Matr[i,j]=myl2prod(Leg[:,i],Leg[:,j],h)
-    return Matr
-
 
 def dirichletfunc(V,h): #nicht analytisch... delta-Distr analytisch def?
-    #Domain [-1,1], Dl=100*delta(1-v), Dr=100*delta(1+v)
+    #Domain [-1,1], Dl=delta(1-v), Dr=delta(1+v) beim drueberintegrieren Faktor 0.5 weil Delta am Rand
     n=np.shape(V)[0]
     Dl=np.array(np.zeros([n]))
     Dr=np.array(np.zeros([n]))
     Dl[-1]=1./h #Dirac
     Dr[0]=1./h #Dirac
-    Dl*=100.
-    Dr*=100.
-    return Dl,Dr
+    return 0.5*Dl,0.5*Dr
 
 def VGrid(n):
     discr=rb_solutions(0,n,(-1.,1.))
@@ -79,47 +104,7 @@ def Sysdirichlet(n,m):
     V,h=VGrid(n)
     h=np.max(h)
     Dl,Dr=dirichletfunc(V,h)
-    Leg=legpol(V,m)
     return syscond(V,Dl,h,m),syscond(V,Dr,h,m)
-
-def SysInitial(n,m):
-    V,h=VGrid(n)
-    nv=np.shape(V)[0]
-    h=np.max(h)
-    DI=10**(-4)*np.ones(nv)
-    return syscond(V,DI,h,m)
-
-def Sysmatrix(n,m):
-    V,h=VGrid(n)
-    h=np.max(h)
-    return sysmatr(V,h,m)
-
-def MassMatrix(n,m):
-    V,h=VGrid(n)
-    h=np.max(h)
-    return massmatr(V,h,m)
-
-
-
-b=Sysdirichlet(200,3)
-A=Sysmatrix(200,3)
-B=MassMatrix(200,3)
-I=SysInitial(200,3)
-
-#D=Sysdirichlet(200,5)
-#print(D)
-
-
-#d=VGrid(20)
-#s=syscond(V,dr,10)
-
-
-
-
-#print(s)
-
-
-
 
 
 
