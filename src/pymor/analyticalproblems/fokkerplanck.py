@@ -36,8 +36,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
     def __init__(self,sysdim, problem='2Pulses'):
 
-
-
+#change stupid things
         assert problem in ('2Beams','2Pulses','SourceBeam')
 
 
