@@ -253,7 +253,8 @@ def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysd
 #        I[j] = NumpyVectorArray(I[j], copy=False)
 #        inject_sid(I[j], __name__ + '.discretize_nonlinear_instationary_advection_fv_ndim.initial_data', p.initial_data, grid)
     #build_parameter_type({'komp':0})
-    mu=Parameter({'komp':0})
+    p.basis_dict.update({'komp':0})
+    mu=Parameter(p.basis_dict)
     for j in range(sysdim):
         mu['komp']=j
         I[j]=p.initial_data.evaluate(grid.quadrature_points(0,order=2),mu).squeeze()
@@ -281,7 +282,7 @@ def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysd
 
 
     discretization = InstationaryDiscretizationNDim(sysdim, operator=L, rhs=F, initial_data=I, T=p.T, products=products,
-                                                time_stepper=time_stepper,
+                                                time_stepper=time_stepper, analytical_problem=p,
                                                 parameter_space=parameter_space, visualizer=visualizer,
                                                 num_values=num_values, name='{}_FV'.format(p.name))
 

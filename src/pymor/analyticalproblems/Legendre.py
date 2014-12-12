@@ -1,6 +1,6 @@
 __author__ = 'j_brun16'
 import numpy as np
-from pymordemos.rb_to_fp import rb_solutions
+#from pymordemos.rb_to_fp import rb_solutions
 from pymor.operators import cg
 from pymor.la import NumpyVectorArray
 from pymor.functions import GenericFunction
@@ -33,6 +33,7 @@ def legpolchar(V,m):
     for i in range(m):
         L[i,...]*=np.sqrt((2.*i+1.)/2.)*(V>=-1)*(V<=1)
     return NumpyVectorArray(L)
+
 
 
 
@@ -105,7 +106,6 @@ def Sysdirichlet(n,m):
     h=np.max(h)
     Dl,Dr=dirichletfunc(V,h)
     return syscond(V,Dl,h,m),syscond(V,Dr,h,m)
-
 
 
 

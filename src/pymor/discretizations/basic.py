@@ -138,8 +138,8 @@ class StationaryDiscretization(DiscretizationBase):
         mu = self.parse_parameter(mu)
 
         # explicitly checking if logging is disabled saves the str(mu) call
-        if not self.logging_disabled:
-            self.logger.info('Solving {} for {} ...'.format(self.name, mu))
+        #if not self.logging_disabled:
+        #    self.logger.info('Solving {} for {} ...'.format(self.name, mu))
 
         return self.operator.apply_inverse(self.rhs.as_vector(mu), mu=mu)
 
@@ -366,7 +366,7 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
 
     sid_ignore = ('visualizer', 'cache_region', 'name')
 
-    def __init__(self, sysdim, T, initial_data, operator, rhs=None, mass=None, time_stepper=None, num_values=None,
+    def __init__(self, sysdim, T, initial_data, operator, analytical_problem=None, rhs=None, mass=None, time_stepper=None, num_values=None,
                  products=None, parameter_space=None, estimator=None, visualizer=None, cache_region='disk',
                  name=None):
         for j in range(sysdim):
@@ -374,6 +374,8 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
             assert not isinstance(initial_data[j], OperatorInterface) or initial_data[j].dim_source == 1
             if isinstance(initial_data[j], VectorArrayInterface):
                 initial_data[j] = VectorOperator(initial_data[j], name='initial_data')
+
+
         assert isinstance(operator, OperatorInterface)
         assert rhs is None or isinstance(rhs, OperatorInterface) and rhs.linear
         assert mass is None or isinstance(mass, OperatorInterface) and mass.linear
@@ -400,7 +402,14 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         self.mass = mass
         self.time_stepper = time_stepper
         self.num_values = num_values
-        self.build_parameter_type(inherits=(operator, rhs, mass), provides={'_t': 0})
+        self.build_parameter_type(local_type=({'komp':0,
+                                                    'm':0,
+                                                    'M':(sysdim,sysdim),
+                                                    'S':(sysdim,sysdim),
+                                                    'D':(sysdim,sysdim),
+                                                    'basis_werte':(1,sysdim),
+                                                    'basis_rand_l':(sysdim,),
+                                                    'basis_rand_r':(sysdim,)}),local_global=True, inherits=(operator, rhs, mass,), provides={'_t': 0})
         self.parameter_space = parameter_space
 
         if hasattr(time_stepper, 'nt'):
@@ -428,6 +437,7 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
 
         return self._with_via_init(kwargs)
 
+
     def _solve(self, mu=None):
         mu = self.parse_parameter(mu).copy() if mu is not None else Parameter({})
 
@@ -439,5 +449,6 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         U0=dict.fromkeys(range(self.sysdim))
         for j in range(self.sysdim):
             U0[j] = self.initial_data[j].as_vector(mu)
+
         return self.time_stepper.solve(self.sysdim, operator=self.operator, rhs=self.rhs, initial_data=U0, mass=self.mass,
                                        initial_time=0, end_time=self.T, mu=mu, num_values=self.num_values)

@@ -7,24 +7,27 @@
 '''FP demo.
 
 Usage:
-  fokkerplanck.py [-hp] [--grid=NI] [--grid-type=TYPE] [--problem=TYPE] [--CFL=NI]
-          [--num-flux=FLUX] [--m=COUNT]
+  fokkerplanck.py [-hp] [--grid=NI] [--grid-type=TYPE] [--problem=TYPE] [--CFLtype=TYPE]
+          [--num-flux=FLUX] [--m=COUNT] [--basis_type=COUNT]
 
 
 Options:
-  --grid=NI              Use grid with NI elements [default: 200].
+  --grid=NI              Use grid with NI elements [default: 50].
 
   --grid-type=TYPE       Type of grid to use (oned) [default: oned].
 
   --problem=TYPE         Select the problem (2Beams, 2Pulses,SourceBeam) [default: SourceBeam].
 
-  --CFL=NI               [default: 0.1]
+  --CFLtype=TYPE         Type of CFL to use (matlab,computed)  [default: matlab].
 
   --num-flux=FLUX        Numerical flux to use [default: godunov_upwind].
 
-  --m=COUNT              Dimension of the system [default: 5].
+  --m=COUNT              Dimension of the system [default: 7].
+
+  --basis_type=COUNT      Type of basis to use (0) [default: 0].
 
   -h, --help             Show this message.
+
 
 '''
 
@@ -41,9 +44,8 @@ import time
 from functools import partial
 import numpy as np
 from docopt import docopt
-
-
 import pymor.core as core
+import pickle
 core.logger.MAX_HIERACHY_LEVEL = 2
 from pymor.discretizers.advection import discretize_nonlinear_instationary_advection_fv_ndim
 from pymor.domaindiscretizers import discretize_domain_default
@@ -61,15 +63,17 @@ def fp_demo(args):
     args['--grid-type'] = args['--grid-type'].lower()
     assert args['--grid-type'] in ('oned')
     #args['--problem']=args['--problem']
-    args['--CFL']=float(args['--CFL'])
+    #args['--CFL']=float(args['--CFL'])
     args['--m'] = int(args['--m'])
+    args['--basis_type']=int(args['--basis_type'])
     args['--num-flux'] = args['--num-flux'].lower()
     assert args['--num-flux'] in ('godunov_upwind')
+    assert args['--CFLtype'] in ('matlab','computed')
 
     print('Setup Problem ...')
     grid_type_map = {'oned': OnedGrid}
     domain_discretizer = partial(discretize_domain_default, grid_type=grid_type_map[args['--grid-type']])
-    problem = FPProblem(sysdim=args['--m'], problem=args['--problem'])
+    problem = FPProblem(sysdim=args['--m'], problem=args['--problem'],CFLtype=args['--CFLtype'])
 
 
     print('Discretize ...')
@@ -78,13 +82,14 @@ def fp_demo(args):
     xwidth=problem.domain.domain[1]-problem.domain.domain[0]
     discretization, data = discretizer(problem, args['--m'], diameter=float(xwidth) / args['--grid'],
                                        num_flux=args['--num-flux'],
-                                       CFL=args['--CFL'], domain_discretizer=domain_discretizer)
+                                       CFL=problem.CFL, domain_discretizer=domain_discretizer)
     print(discretization.operator.grid)
 
 
 
-
-    mu=(0,args['--m'])
+    mu=problem.basis_dict
+    mu.update({'m':args['--m'] })
+    #mu=(0,args['--m'],args['--basis_type'])
 
 
     sys.stdout.flush()
@@ -101,15 +106,17 @@ def fp_demo(args):
     print('Solving took {}s'.format(time.time() - tic))
     # pr.dump_stats('bla')
     discretization.visualize(U)
-    print(U)
+    #print(U)
     Ud=U.data
-    with open('sourcebeam.csv','w') as csvfile:
-        writer=csv.writer(csvfile)
-        for j in range(np.shape(Ud)[0]):
-            writer.writerow(Ud[j,:])
+    #with open('2beams5.csv','w') as csvfile:
+    #    writer=csv.writer(csvfile)
+    #    for j in range(np.shape(Ud)[0]):
+    #        writer.writerow(Ud[j,:])
     #with open('zeiten.csv','w') as csvfile:
     #    writer=csv.writer(csvfile)
     #    writer.writerow(tvec)
+    pickle.dump(U,open( "saveUxt.p", "wb" ))
+
 
 
 if __name__ == '__main__':
@@ -117,7 +124,6 @@ if __name__ == '__main__':
     args = docopt(__doc__)
     # run demo
     fp_demo(args)
-
 
 
 

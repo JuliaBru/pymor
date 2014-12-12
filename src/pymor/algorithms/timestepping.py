@@ -284,7 +284,13 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
     dt = (t1 - t0) / nt
 
-    R=U0.copy()
+    R=dict.fromkeys(range(sysdim))
+    for j in range(sysdim):
+        #R[j]=np.zeros((nt,U0[j].dim))
+        #R[j][0,:]=U0[j].data
+        R[j] = A.type_source.empty(A.dim_source, reserve=num_values)
+        R[j].append(U0[j])
+
 
     t = t0
     tvec=np.array(t0)
@@ -305,7 +311,9 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
             for j in range(sysdim):
                 U[j].axpy(dt,-Ua[j])
             #    if n * (num_values / nt) > len(R[j]):
+#                if j==0:
                 R[j].append(U[j])
+                #R[j][n,:]=U[j].data
 
 
     else:
@@ -325,6 +333,9 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
                 U[j].axpy(dt,F_ass[j] -Ua[j])
             #    if n * (num_values / nt) > len(R[j]):
                 R[j].append(U[j])
+               # R[j][n,:]=U[j].data
 
+#    for j in range(sysdim):
+#        R[j]=NumpyVectorArray(R[j])
 
     return R,tvec
