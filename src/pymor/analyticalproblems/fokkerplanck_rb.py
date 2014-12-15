@@ -50,7 +50,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
         The |Function| f(x, μ).
     '''
 
-    def __init__(self, delta=0.5 , problem='SourceBeam', quadrature_count=(3,3), P_parameter_range=(0, 10), dxP_parameter_range=(0, 10),
+    def __init__(self, delta=0.5 , problem='SourceBeam', quadrature_count=(3,3), P_parameter_range=(0, 2), dxP_parameter_range=(0, 10),
                  dtP_parameter_range=(0, 10)):
 
         self.delta=delta
@@ -86,7 +86,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
             I=dx*(np.sum(Ix)-0.5*(Ix[0]+Ix[-1]))
             return I
 
-        parameter_range={'P': P_parameter_range, 'dxP': dxP_parameter_range, 'dtP': dtP_parameter_range, 'dirich':(0,0.5)}
+        parameter_range={'P': P_parameter_range, 'dxP': dxP_parameter_range, 'dtP': dtP_parameter_range, 'dirich':(0,1)}
         parameter_space = CubicParameterSpace({'P': (quadrature_count[0], quadrature_count[1]),
                                                'dxP':(quadrature_count[0], quadrature_count[1]),
                                                'dtP':(quadrature_count[0], quadrature_count[1]),
@@ -162,7 +162,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     Qmatr[i,j]=Qfunc(xpoints[i],tpoints[j])
             F=np.multiply(P,Qmatr)
             ret= xt_quadrature(F,xdomain,tdomain)+v[...,0]*0
-            print('rhs={}'.format(ret))
+           # print('rhs={}'.format(ret[0,0]))
             return ret
         self.rhs=GenericFunction(rhs_func,dim_domain=1, parameter_type={'P':(quadrature_count[0],quadrature_count[1])})
 

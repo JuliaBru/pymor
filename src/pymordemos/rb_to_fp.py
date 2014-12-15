@@ -33,6 +33,8 @@ from pymordemos.fokkerplanck import FPProblem
 import pickle
 from pymor.parameters.base import Parameter
 from pymor.la.pod import pod
+from pymor import core
+
 
 
 getLogger('pymor.discretizations').setLevel('INFO')
@@ -40,7 +42,7 @@ getLogger('pymor.discretizations').setLevel('INFO')
 
 def rb_solutions(OnlyDiscr=False):
 
-
+    core.cache.disable_caching()
 
     #a0 = GenericFunction(lambda V,mu: mu*V[...,0], dim_domain=1,parameter_type={'diffusionl':0})
     #a0 =GenericFunction(a0func,dim_domain=1)#,parameter_type={'diffusionl':0})
@@ -93,6 +95,7 @@ def rb_solutions(OnlyDiscr=False):
         #print(mu)
 
             U.append(discretization.solve(mu))
+
 
         #rb = pod(U,modes=4)
 
