@@ -17,7 +17,7 @@ class EllipticPlusProblem(ImmutableInterface, Named):
     The problem consists in solving ::
 
     |        K
-    |  - ∇ ⋅ ∑  θ_k(μ) ⋅ d_k(x) ∇ u(x, μ) + c(x, μ) * u(x, μ)  = f(x, μ)
+    |  - ∇ ⋅ ∑  θ_k(μ) ⋅ d_k(x) ∇ u(x, μ) + ∑ c_j(x) phi_j(mu) * u(x, μ)  = f(x, μ)
     |       k=0
 
     for u.
@@ -37,6 +37,7 @@ class EllipticPlusProblem(ImmutableInterface, Named):
         no parameter dependence is assumed.
     absorb_function
         The |Function| c(x, μ).
+
     dirichlet_data
         |Function| providing the Dirichlet boundary values in global coordinates.
     name
@@ -54,12 +55,14 @@ class EllipticPlusProblem(ImmutableInterface, Named):
 
     def __init__(self, domain=RectDomain(), rhs=ConstantFunction(dim_domain=2),
                  diffusion_functions=(ConstantFunction(dim_domain=2),),
-                 diffusion_functionals=None, absorb_function=ConstantFunction(dim_domain=2),
+                 diffusion_functionals=None, absorb_functions=ConstantFunction(dim_domain=2),
+                 absorb_functionals=None,
                  dirichlet_data=ConstantFunction(value=0, dim_domain=2), name=None):
         self.domain = domain
         self.rhs = rhs
         self.diffusion_functions = diffusion_functions
         self.diffusion_functionals = diffusion_functionals
-        self.absorb_function=absorb_function
+        self.absorb_functions=absorb_functions
+        self.absorb_functionals = absorb_functionals
         self.dirichlet_data = dirichlet_data
         self.name = name

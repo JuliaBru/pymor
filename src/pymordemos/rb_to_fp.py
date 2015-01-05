@@ -29,7 +29,6 @@ from pymor.functions import GenericFunction, ConstantFunction
 from pymor.parameters import CubicParameterSpace, ProjectionParameterFunctional, GenericParameterFunctional
 from pymor.operators.cg import L2ProductP1
 from pymor.analyticalproblems.fokkerplanck_rb import Fokkerplanck_V
-from pymordemos.fokkerplanck import FPProblem
 import pickle
 from pymor.parameters.base import Parameter
 from pymor.la.pod import pod
@@ -40,7 +39,7 @@ from pymor import core
 getLogger('pymor.discretizations').setLevel('INFO')
 
 
-def rb_solutions(OnlyDiscr=False):
+def rb_solutions(rb_size=5, return_rb=False):
 
     core.cache.disable_caching()
 
@@ -53,18 +52,24 @@ def rb_solutions(OnlyDiscr=False):
     #f1 = GenericParameterFunctional(lambda mu: 1, {})
 
     #print('Solving on OnedGrid(({0},{0}))'.format(n))
-    Uxt=pickle.load(open("saveUxt.p",'rb'))
-    P=Uxt.data.T
-    dxP=np.zeros(P.shape)
-    dtP=np.zeros(P.shape)
-    for i in range(1,P.shape[0]-1):
-        dxP[i,:]=1./(2.*3./(P.shape[0]-1)) * (P[i+1,:]-P[i-1,:])
-    dxP[0,:]*=0
-    dxP[-1,:]*=0
-    for j in range(1,P.shape[1]-1):
-        dtP[:,j]=1./(2.*4./(P.shape[1]-1)) * (P[:,j+1]-P[:,j-1])
-    dtP[:,0]*=0
-    dtP[:,-1]*=0
+    #Uxt=pickle.load(open("saveUxt.p",'rb'))
+    #P=Uxt.data.T
+    #dxP=np.zeros(P.shape)
+    #dtP=np.zeros(P.shape)
+    #for i in range(1,P.shape[0]-1):
+    #    dxP[i,:]=1./(2.*3./(P.shape[0]-1)) * (P[i+1,:]-P[i-1,:])
+    #dxP[0,:]*=0
+    #dxP[-1,:]*=0
+    #for j in range(1,P.shape[1]-1):
+    #    dtP[:,j]=1./(2.*4./(P.shape[1]-1)) * (P[:,j+1]-P[:,j-1])
+    #dtP[:,0]*=0
+    #dtP[:,-1]*=0
+    #Prange=(np.min(P),np.max(P))
+    #dxPrange=(np.min(dxP),np.max(dxP))
+    #dtPrange=(np.min(dtP),np.max(dtP))
+    #print('P-range={}'.format(Prange))
+    #print('dxP-range={}'.format(dxPrange))
+    #print('dtP-range={}'.format(dtPrange))
 
 
 
@@ -74,7 +79,7 @@ def rb_solutions(OnlyDiscr=False):
     #                          diffusion_functionals=(f0,), absorb_function=a0, dirichlet_data=None,
     #                          name='1DProblem')
 
-    problem=Fokkerplanck_V(delta=0, quadrature_count=P.shape)
+    problem=Fokkerplanck_V(delta=0, quadrature_count=(1,1),P_parameter_range=(0.01,1.2), dxP_parameter_range=(-5.4,0.9),dtP_parameter_range=(0,16.6))
 
 
     print('Discretize ...')
@@ -82,22 +87,31 @@ def rb_solutions(OnlyDiscr=False):
     discretization, _ = discretize_elliptic_cg_plus(problem, diameter=1 / n)
 
     #mu=Parameter({'P':P,'dxP':dxP, 'dtP': dtP})#, 'dirich': (1,0)})
-    if OnlyDiscr == False:
-
-        print('The parameter type is {}'.format(discretization.parameter_type))
-
-        U = discretization.type_solution.empty(discretization.dim_solution)
-        for mu in problem.parameter_space.sample_uniformly({'P':1, 'dtP':1, 'dxP':1, 'dirich':2}):
-            mu['P']=P
-            mu['dxP']=dxP
-            mu['dtP']=dtP
-
-        #print(mu)
-
-            U.append(discretization.solve(mu))
 
 
-        #rb = pod(U,modes=4)
+    print('The parameter type is {}'.format(discretization.parameter_type))
+
+    U = discretization.type_solution.empty(discretization.dim_solution, reserve=1000)
+
+    param_count=0
+    for mu in problem.parameter_space.sample_randomly(500):
+        param_count+=1
+        mu['dirich']=(0,1)
+        print('{}. Parameter'.format(param_count))
+        print(mu)
+        U.append(discretization.solve(mu))
+        param_count+=1
+        mu['dirich']=(1,0)
+        print('{}. Parameter'.format(param_count))
+        print(mu)
+        U.append(discretization.solve(mu))
+
+
+
+    rb = pod(U,modes=rb_size, orthonormalize=True,product=discretization.products['l2'],check_tol=0.01)
+
+
+
 
     #print('Computing System Matrices ...')
     #m=U._len
@@ -115,11 +129,12 @@ def rb_solutions(OnlyDiscr=False):
 
 
     #if plot:
-        print('Plot ...')
-        discretization.visualize(U, title='')
+    #print('Plot ...')
+    #discretization.visualize(rb, title='rb')
 
-    if OnlyDiscr == True:
-        return discretization
+
+    if return_rb==True:
+        return rb, discretization
 
 
 

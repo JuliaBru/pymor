@@ -61,7 +61,7 @@ def basis_discr(nrhs, n, domainint):
 
     #print('Setup Problem ...')
     problem = EllipticPlusProblem(domain=LineDomain(domainint), rhs=rhs, diffusion_functions=(d0,),
-                              diffusion_functionals=(f0,), absorb_function=a0, dirichlet_data=None,
+                              diffusion_functionals=(f0,), absorb_functions=(a0,), dirichlet_data=None,
                               name='1DProblem')
 
     #print('Discretize ...')

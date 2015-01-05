@@ -324,7 +324,7 @@ class L2ProductP1Absorb(NumpyMatrixBasedOperator):
 
     sparse = True
 
-    def __init__(self, grid,absorb_function, boundary_info, dirichlet_clear_rows=True, dirichlet_clear_columns=False,
+    def __init__(self, grid, boundary_info, absorb_function=None, dirichlet_clear_rows=True, dirichlet_clear_columns=False,
                  dirichlet_clear_diag=False, name=None):
         assert grid.reference_element in (line, triangle)
         self.dim_source = grid.size(grid.dim)
@@ -386,16 +386,16 @@ class L2ProductP1Absorb(NumpyMatrixBasedOperator):
         SF_I0 = np.repeat(g.subentities(0, g.dim), g.dim + 1, axis=1).ravel()
         SF_I1 = np.tile(g.subentities(0, g.dim), [1, g.dim + 1]).ravel()
 
- #       self.logger.info('Boundary treatment ...')
- #       if bi.has_dirichlet:
- #           if self.dirichlet_clear_rows:
- #               SF_INTS = np.where(bi.dirichlet_mask(g.dim)[SF_I0], 0, SF_INTS)
- #           if self.dirichlet_clear_columns:
- #               SF_INTS = np.where(bi.dirichlet_mask(g.dim)[SF_I1], 0, SF_INTS)
- #           if not self.dirichlet_clear_diag and (self.dirichlet_clear_rows or self.dirichlet_clear_columns):
- #               SF_INTS = np.hstack((SF_INTS, np.ones(bi.dirichlet_boundaries(g.dim).size)))
- #               SF_I0 = np.hstack((SF_I0, bi.dirichlet_boundaries(g.dim)))
- #               SF_I1 = np.hstack((SF_I1, bi.dirichlet_boundaries(g.dim)))
+#        self.logger.info('Boundary treatment ...')
+#        if bi.has_dirichlet:
+#            if self.dirichlet_clear_rows:
+#                SF_INTS = np.where(bi.dirichlet_mask(g.dim)[SF_I0], 0, SF_INTS)
+#            if self.dirichlet_clear_columns:
+#                SF_INTS = np.where(bi.dirichlet_mask(g.dim)[SF_I1], 0, SF_INTS)
+#            if not self.dirichlet_clear_diag and (self.dirichlet_clear_rows or self.dirichlet_clear_columns):
+#                SF_INTS = np.hstack((SF_INTS, np.ones(bi.dirichlet_boundaries(g.dim).size)))
+#                SF_I0 = np.hstack((SF_I0, bi.dirichlet_boundaries(g.dim)))
+#                SF_I1 = np.hstack((SF_I1, bi.dirichlet_boundaries(g.dim)))
 
         self.logger.info('Assemble system matrix ...')
         A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))

@@ -94,7 +94,7 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     POD = A.lincomb(EVECS / np.sqrt(EVALS[:, np.newaxis]))
 
     if orthonormalize:
-        POD = gram_schmidt(POD, product=product, copy=False)
+        POD = gram_schmidt(POD, product=product, copy=False, check=False)
 
     if check:
         if not product and not float_cmp_all(POD.dot(POD, pairwise=False), np.eye(len(POD)), check_tol):

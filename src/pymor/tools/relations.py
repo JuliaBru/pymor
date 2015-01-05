@@ -44,7 +44,7 @@ def inverse_relation(R, size_rhs=None, with_indices=False):
     '''
 
     assert R.ndim == 2
-    logger.warn('Call to unoptimized function inverse_relation')
+    #logger.warn('Call to unoptimized function inverse_relation')
 
     num_columns_RINV = np.bincount(R.ravel()).max()
     size_rhs = size_rhs or (R.max() + 1)

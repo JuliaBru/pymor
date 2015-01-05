@@ -15,6 +15,7 @@ from pymor.parameters.spaces import CubicParameterSpace
 from pymor.analyticalproblems import Legendre
 from pymor.la import NumpyVectorArray
 from pymordemos.Legendre_Discr import basis_discr
+from pymordemos.rb_to_fp import rb_solutions
 from pymor.parameters.base import Parameter
 
 
@@ -36,15 +37,15 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
         The interval in which μ is allowed to vary.
     '''
 
-    def __init__(self,sysdim, problem, CFLtype, basis_type='Leg'):
+    def __init__(self,sysdim, problem, CFLtype, basis_type='leg'):
 
-        assert basis_type == 'Leg'
+
 
         assert problem in ('2Beams','2Pulses','SourceBeam')
 
         def basis_generation(type):
 
-            if type=='Leg':
+            if type=='leg':
                 discr=basis_discr(0,1000,[-1,1])
                 grid=discr.visualizer.grid
                 basis=Legendre.legpolchar(grid.quadrature_points(1,order=2)[:,0,0],sysdim)
@@ -59,17 +60,26 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
                 #        flux=flux[0,0]
                 #    return flux*U
 
-                inject_sid(fp_flux, str(FPProblem) + '.fp_flux')
+                #inject_sid(fp_flux, str(FPProblem) + '.fp_flux')
+
+
+            elif type == 'rb':
+                basis, discr = rb_solutions(return_rb=True, rb_size=sysdim)
+                grid=discr.visualizer.grid
 
 
 
             mprod=discr.l2_product
             M=mprod.apply2(basis,basis,False)
+            print(M)
             dprod=discr.absorb_product
             D=dprod.apply2(basis,basis,False)
+            print(D)
             sprod=discr.h1_product
             S=sprod.apply2(basis,basis,False)
+            print(S)
             basis_werte=mprod.apply2(NumpyVectorArray(np.ones(np.shape(grid.quadrature_points(1,order=2)[:,0,0]))),basis,False)
+            print('basis_werte = {}'.format(basis_werte))
             basis_rand_l=basis.data[:,0]
             basis_rand_r=basis.data[:,-1]
             return dict({'M':M, 'D':D,'S':S, 'basis_werte':basis_werte,'basis_rand_l':basis_rand_l,'basis_rand_r':basis_rand_r})
@@ -106,7 +116,6 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             def BCdeltar(t):
                 return  100*np.exp(-0.5*(t-1)**2)
 
-
             def Tfunc(x):
                 return 0
             def absorbfunc(x):
@@ -114,11 +123,12 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             def Qfunc(x):
                 return 0
 
+
         if problem == 'SourceBeam':
 
             domain = LineDomain([0.,3.])
-            stoptime=4.
-            matlabcfl=0.1
+            stoptime=0.2
+            matlabcfl=0.001
 
 
             def IC(x):
@@ -139,7 +149,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             def Qfunc(x):
                 return (x[...,0] >= 1)*(x[...,0]<= 1.5)
             def Tfunc(x):
-                return 2.*(x > 1)*(x <=2) + 10.*(x > 2)
+                return (2.*(x > 1)*(x <=2) + 10.*(x > 2)  )
 
             def absorbfunc(x):
                 return 1.*(x<=2)
@@ -165,7 +175,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             dirichlet= BCfuncl(mu['_t'])*basis_werte[0,mu['komp']]*(x[...,0]<=0) + BCfuncr(mu['_t'])*basis_werte[0,mu['komp']]*(x[...,0]>0)
             wl=BCdeltal(mu['_t'])
             wr=BCdeltar(mu['_t'])
-            dirichlet += wl*basis_rand_r[mu['komp']]*(x[...,0]<=0) +  wr*basis_rand_l[mu['komp']]*(x[...,0]>0)
+            dirichlet += ( wl*basis_rand_r[mu['komp']]*(x[...,0]<=0) +  wr*basis_rand_l[mu['komp']]*(x[...,0]>0))*0.5 #0.5 wegen delta distr am rand
             return dirichlet
         dirich_data=GenericFunction(dirichfunc,dim_domain=1,parameter_type={'m':0,'_t':0,'komp':0})
 
@@ -189,6 +199,8 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
         source_data=GenericFunction(source_func,dim_domain=1,parameter_type={'komp':0})
         self.rhs=source_data
+        basis_dict=basis_generation(basis_type)
+        flux_matrix=basis_dict['D']
 
 
 
@@ -205,10 +217,10 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
 
-        if problem == '2Beams':
-            domain = LineDomain([-0.5, 0.5])
-            stoptime=2.
-            matlabcfl=0.9
+        #if problem == '2Beams':
+        #    domain = LineDomain([-0.5, 0.5])
+        #    stoptime=2.
+        #    matlabcfl=0.9
 
             #def initfunc(x,mu):
             #    if mu['komp']==0:
@@ -225,26 +237,15 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             #    return A
             #dirich_data=GenericFunction(dirichfunc,dim_domain=1,parameter_type={'m':0,'_t':0,'komp':0})
 
-            def absorbfunc(x):
-                return 4.
+         #   def absorbfunc(x):
+         #       return 4.
 
-            Tfunc=None
-            source_data=None
-
-
-
-
-
-
-
-        basis_dict=basis_generation(basis_type)
-        flux_matrix=basis_dict['D']
-
-
+#            Tfunc=None
+#            source_data=None
 
 
         super(FPProblem, self).__init__(domain=domain,
-                                             rhs=None,
+                                             rhs=source_data,
                                              flux_function=flux_function,
                                              #low_order=low_order,
                                              initial_data=initial_data,

@@ -10,7 +10,7 @@ from pymor.discretizations import StationaryDiscretization
 from pymor.domaindiscretizers import discretize_domain_default
 from pymor.grids import TriaGrid, OnedGrid
 from pymor.gui.qt import PatchVisualizer, Matplotlib1DVisualizer
-from pymor.operators.cg import DiffusionOperatorP1, L2ProductFunctionalP1, L2ProductP1WithoutBoundary, L2ProductP1Absorb, DiffusionOperatorP1WithoutBoundary
+from pymor.operators.cg import DiffusionOperatorP1, L2ProductFunctionalP1, L2ProductP1, L2ProductP1WithoutBoundary, L2ProductP1Absorb, DiffusionOperatorP1WithoutBoundary
 
 
 def discretize_elliptic_cg_plus(analytical_problem, diameter=None, domain_discretizer=None,
@@ -81,8 +81,24 @@ def discretize_elliptic_cg_plus(analytical_problem, diameter=None, domain_discre
     else:
         L = Operator(grid, boundary_info, diffusion_function=p.diffusion_functions[0],
                      name='diffusion')
+    if p.absorb_functionals is not None or len(p.absorb_functions) > 1:
+        Ai = [AbsorbOperator(grid, boundary_info, absorb_function=af, dirichlet_clear_diag=True,
+                       name='absorb_{}'.format(i))
+              for i, af in enumerate(p.absorb_functions)]
+        #func=p.absorb_functions[0]
+        #A0=AbsorbOperator(grid, boundary_info, absorb_function=func)
+        #A1=AbsorbOperator(grid, boundary_info, absorb_function=p.absorb_functions[1], dirichlet_clear_diag=True)
 
-    A=AbsorbOperator(grid,p.absorb_function,boundary_info)
+        if p.absorb_functionals is None:
+            A = type(Ai[0]).lincomb(operators=Ai, name='absorb', num_coefficients=len(Ai),
+                                 global_names={'coefficients': 'absorb_coefficients'})
+        else:
+            A = type(Ai[0]).lincomb(operators= Ai, coefficients=list(p.absorb_functionals),
+                                 name='absorb')
+    else:
+        A = AbsorbOperator(grid, boundary_info, absorb_function=p.absorb_functions[0],
+                     name='absorb')
+
     L=type(L).lincomb(operators=[L]+[A],coefficients=[1,1])
 
     F = Functional(grid, p.rhs, boundary_info, dirichlet_data=p.dirichlet_data)
@@ -94,7 +110,7 @@ def discretize_elliptic_cg_plus(analytical_problem, diameter=None, domain_discre
 
     products = {'h1': DiffusionOperatorP1WithoutBoundary(grid, boundary_info,diffusion_function=p.diffusion_functions[0]),
                 'l2': L2ProductP1WithoutBoundary(grid, boundary_info),
-                'absorb': A}
+                'absorb': AbsorbOperator(grid, boundary_info, absorb_function=p.absorb_functions[0])}
 
     parameter_space = p.parameter_space if hasattr(p, 'parameter_space') else None
 
