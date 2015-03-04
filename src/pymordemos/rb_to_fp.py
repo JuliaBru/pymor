@@ -16,125 +16,91 @@ Options:
 
 from __future__ import absolute_import, division, print_function
 
-#from docopt import docopt
 import numpy as np
-
-from pymor.analyticalproblems import EllipticProblem
-from pymor.analyticalproblems.ellipticplus import EllipticPlusProblem
 from pymor.core import getLogger
-from pymor.discretizers import discretize_elliptic_cg
 from pymor.discretizers.ellipticplus import discretize_elliptic_cg_plus
-from pymor.domaindescriptions import LineDomain
-from pymor.functions import GenericFunction, ConstantFunction
-from pymor.parameters import CubicParameterSpace, ProjectionParameterFunctional, GenericParameterFunctional
-from pymor.operators.cg import L2ProductP1
 from pymor.analyticalproblems.fokkerplanck_rb import Fokkerplanck_V
 import pickle
-from pymor.parameters.base import Parameter
+from pymor.la import NumpyVectorArray
 from pymor.la.pod import pod
-from pymor import core
+from datetime import datetime as date
+import time
+
+
 
 
 
 getLogger('pymor.discretizations').setLevel('INFO')
 
 
-def rb_solutions(rb_size=5, return_rb=False):
-
-    core.cache.disable_caching()
-
-    #a0 = GenericFunction(lambda V,mu: mu*V[...,0], dim_domain=1,parameter_type={'diffusionl':0})
-    #a0 =GenericFunction(a0func,dim_domain=1)#,parameter_type={'diffusionl':0})
-
-
-    #parameter_space = CubicParameterSpace({'diffusionl': 0}, 0.1, 1)
-    #f0 = ProjectionParameterFunctional('diffusionl', 0)
-    #f1 = GenericParameterFunctional(lambda mu: 1, {})
-
-    #print('Solving on OnedGrid(({0},{0}))'.format(n))
-    #Uxt=pickle.load(open("saveUxt.p",'rb'))
-    #P=Uxt.data.T
-    #dxP=np.zeros(P.shape)
-    #dtP=np.zeros(P.shape)
-    #for i in range(1,P.shape[0]-1):
-    #    dxP[i,:]=1./(2.*3./(P.shape[0]-1)) * (P[i+1,:]-P[i-1,:])
-    #dxP[0,:]*=0
-    #dxP[-1,:]*=0
-    #for j in range(1,P.shape[1]-1):
-    #    dtP[:,j]=1./(2.*4./(P.shape[1]-1)) * (P[:,j+1]-P[:,j-1])
-    #dtP[:,0]*=0
-    #dtP[:,-1]*=0
-    #Prange=(np.min(P),np.max(P))
-    #dxPrange=(np.min(dxP),np.max(dxP))
-    #dtPrange=(np.min(dtP),np.max(dtP))
-    #print('P-range={}'.format(Prange))
-    #print('dxP-range={}'.format(dxPrange))
-    #print('dtP-range={}'.format(dtPrange))
-
-
+def rb_solutions(problemname='SourceBeam', rb_size=50, return_rb=False, picklen=False,compute_rb=True):
 
 
     print('Setup Problem ...')
-    #problem = EllipticPlusProblem(domain=LineDomain(domainint), rhs=rhs, diffusion_functions=(d0,),
-    #                          diffusion_functionals=(f0,), absorb_function=a0, dirichlet_data=None,
-    #                          name='1DProblem')
 
-    problem=Fokkerplanck_V(delta=0, quadrature_count=(1,1),P_parameter_range=(0.01,1.2), dxP_parameter_range=(-5.4,0.9),dtP_parameter_range=(0,16.6))
+
+    problem=Fokkerplanck_V(problem=problemname, delta=0, quadrature_count=(1,1),P_parameter_range=(0.01,1.2),
+                           dxP_parameter_range=(-5.4,0.9),dtP_parameter_range=(0,5))
 
 
     print('Discretize ...')
-    n=200
-    discretization, _ = discretize_elliptic_cg_plus(problem, diameter=1 / n)
 
-    #mu=Parameter({'P':P,'dxP':dxP, 'dtP': dtP})#, 'dirich': (1,0)})
+    n=250
+
+    discretization, _ = discretize_elliptic_cg_plus(problem, diameter=1 / n)
 
 
     print('The parameter type is {}'.format(discretization.parameter_type))
 
-    U = discretization.type_solution.empty(discretization.dim_solution, reserve=1000)
+    if picklen == False:
+        snapshots=100
 
-    param_count=0
-    for mu in problem.parameter_space.sample_randomly(500):
-        param_count+=1
-        mu['dirich']=(0,1)
-        print('{}. Parameter'.format(param_count))
-        print(mu)
-        U.append(discretization.solve(mu))
-        param_count+=1
-        mu['dirich']=(1,0)
-        print('{}. Parameter'.format(param_count))
-        print(mu)
-        U.append(discretization.solve(mu))
+        np.random.seed()
+        tic = time.time()
 
+        d=date.now()
+        for i in range(1):
+            print(i)
+            V = discretization.type_solution.empty(discretization.dim_solution, reserve=snapshots)
+            j=0
+            for mu in problem.parameter_space.sample_randomly(snapshots):
+                j+=1
 
+                if (problemname == 'SourceBeam' and mu['qxpoint'] >=1) or not (problemname == 'SourceBeam'):
+                    try:
+                        V.append(discretization.solve(mu))
+                        print('Nr. {}'.format(j))
+                    except:
+                        print('Fehler bei mu={}'.format(mu))
+                        V.append(NumpyVectorArray(np.zeros(discretization.dim_solution)))
 
-    rb = pod(U,modes=rb_size, orthonormalize=True,product=discretization.products['l2'],check_tol=0.01)
-
-
-
-
-    #print('Computing System Matrices ...')
-    #m=U._len
-    #prod=discretization.l2_product
-    #M=np.zeros([m,m])
-    #for i in range(m):
-    #    for j in range(m):
-    #        M[i,j]=prod.apply2(U,U,i,j,True)
-    #print(M)
-
-    #M=prod.apply2(U,U,False)
-    #print(M)
-    #diag=prod.apply2(U,U,True)
-    #print(diag)
+                else:
+                    V.append(NumpyVectorArray(np.zeros(discretization.dim_solution)))
 
 
-    #if plot:
-    #print('Plot ...')
-    #discretization.visualize(rb, title='rb')
+            pickle.dump(V,open( "rb-daten {}, n={} Nr. {} {}.p".format(snapshots,n,i,d.strftime("%y-%m-%d %H:%M:%S")), "wb" ))
+
+
+        print('Solving took {}s'.format(time.time() - tic))
+
+
+        if compute_rb==True:
+            rb,sw=pod(V,modes=50,orthonormalize=True,product=discretization.products['l2'],check_tol=0.1)
+            discretization.visualize(rb)
+
+
+
+
+    if picklen == True:
+        rbvoll,sw =pickle.load(open("rb 1000000 15-02-02 10:47:28.p",'rb'))
+
+        rb=NumpyVectorArray(rbvoll.data[0:rb_size,:])
 
 
     if return_rb==True:
-        return rb, discretization
+        return  rb, discretization
+
+
 
 
 

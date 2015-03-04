@@ -50,7 +50,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
         The |Function| f(x, μ).
     '''
 
-    def __init__(self, delta=0.5 , problem='SourceBeam', quadrature_count=(3,3), P_parameter_range=(0.2, 2), dxP_parameter_range=(0, 10),
+    def __init__(self, delta=0.5 , problem='SourceBeam', quadrature_count=(1,1), P_parameter_range=(0.2, 2), dxP_parameter_range=(0, 10),
                  dtP_parameter_range=(0, 10)):
 
         self.delta=delta
@@ -74,6 +74,52 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
             def absorbfunc(x,t):
                 return 1.*(x<=2)
 
+        if problem == 'SourceBeamNeu':
+            xdomain=(0.,3.)
+            tdomain=(0.,4.)
+
+            def IC(x,t):
+                return 10.**(-4)
+            def BCr(x,t):
+                return 1
+            def BCl(x,t):
+                return 10**(-4)
+            def Qfunc(x,t):
+                return (x >= 1)*(x <= 1.5)
+            def Tfunc(x,t):
+                #return (2.*(x > 1)*(x <=2) + 10.*(x > 2)  )
+                return x
+            def absorbfunc(x,t):
+                #return 1.*(x <= 2)
+                return 0.
+
+        if problem == 'RectIC':
+
+            xdomain = (0.,7.)
+            tdomain=(0.,8.)
+
+            def IC(x,t):
+                return 10.**(-4)*(x<3)+ 10.**(-4)*(x>4) + 10*(x>=3)*(x<=4)
+
+            def BCfuncl(t):
+                return 10**(-4)
+            def BCfuncr(t):
+                return 10**(-4)
+            def BCdeltal(t):
+                return 0
+            def BCdeltar(t):
+                return 0
+
+
+            def Qfunc(x,t):
+                return 0
+            def Tfunc(x,t):
+                return 1.
+
+            def absorbfunc(x,t):
+                return 0
+
+
         def xt_quadrature(f,xdomain,tdomain):
             xlength=xdomain[1]-xdomain[0]
             tlength=tdomain[1]-tdomain[0]
@@ -92,8 +138,24 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
 
 
 
+        if problem == 'SourceBeam':
+            parameter_range={'P': P_parameter_range,
+                             'dxP': dxP_parameter_range,
+                             'dtP': dtP_parameter_range,
+                             'dirich':(0,1),
+                             'qxpoint':(1.,3.),
+                             'qtpoint':tdomain}
 
-        parameter_range={'P': P_parameter_range, 'dxP': dxP_parameter_range, 'dtP': dtP_parameter_range, 'dirich':(0,1),'qxpoint':xdomain, 'qtpoint':tdomain}
+        else:
+            parameter_range={'P': P_parameter_range,
+                             'dxP': dxP_parameter_range,
+                             'dtP': dtP_parameter_range,
+                             'dirich':(0,1),
+                             'qxpoint':xdomain,
+                             'qtpoint':tdomain}
+
+
+
         parameter_space = CubicParameterSpace({'P': (quadrature_count[0], quadrature_count[1]),
                                                'dxP':(quadrature_count[0], quadrature_count[1]),
                                                'dtP':(quadrature_count[0], quadrature_count[1]),
@@ -126,8 +188,9 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     Tmatr[i,j]=Tfunc(xpoints[i],tpoints[j])
             F=np.multiply(np.multiply(P,P),Tmatr)
             ret=xt_quadrature(F,xdomain,tdomain)
-            print('param_a={}'.format(ret))
+            #print('param_a={}'.format(ret))
             return ret
+
 
         self.diffusion_functionals=[GenericParameterFunctional(param_a,{'P':(quadrature_count[0], quadrature_count[1]),
                                                                         'dxP':(quadrature_count[0], quadrature_count[1]),
@@ -148,7 +211,6 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
             dxP=mu['dxP']
             F=np.multiply(dxP,P)
             ret=xt_quadrature(F,xdomain,tdomain)
-            print('param_b={}'.format(ret))
             return ret
 
         def param_c(mu):
@@ -163,16 +225,9 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     sigmamatr[i,j]=absorbfunc(xpoints[i],tpoints[j])
             F=np.multiply(dtP,P)+np.multiply(np.multiply(P,P),sigmamatr)
             ret=xt_quadrature(F,xdomain,tdomain)
-            print('param_c={}'.format(ret))
             return ret
 
 
-        def absorb_func(v,mu):
-            return a0func(v)*param_b(mu)+param_c(mu)
-        #self.absorb_function=GenericFunction(absorb_func,dim_domain=1, parameter_type={'P':(quadrature_count[0], quadrature_count[1]),
-        #                                                                'dxP':(quadrature_count[0], quadrature_count[1]),
-        #                                                                'dtP':(quadrature_count[0], quadrature_count[1]),
-        #                                                                'qxpoint':0,'qtpoint':0})
         self.absorb_functions=(GenericFunction(a0func,dim_domain=1),GenericFunction(a1func,dim_domain=1))
 
         self.absorb_functionals=(GenericParameterFunctional(param_b,{'P':(quadrature_count[0], quadrature_count[1]),
@@ -184,8 +239,6 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                                                                         'dtP':(quadrature_count[0], quadrature_count[1]),
                                                                         'qxpoint':0,'qtpoint':0}))
 
-
-
         def rhs_func(v,mu):
             P=mu['P']
             Qmatr=np.zeros(quadrature_count)
@@ -195,7 +248,6 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     Qmatr[i,j]=Qfunc(xpoints[i],tpoints[j])
             F=np.multiply(P,Qmatr)
             ret= xt_quadrature(F,xdomain,tdomain)+v[...,0]*0
-           # print('rhs={}'.format(ret[0,0]))
             return ret
         self.rhs=GenericFunction(rhs_func,dim_domain=1, parameter_type={'P':(quadrature_count[0],quadrature_count[1]),'qxpoint':0,'qtpoint':0})
 
@@ -205,31 +257,5 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
         self.dirichlet_data=GenericFunction(dirich_func,dim_domain=1, parameter_type={'dirich':(2)})
 
 
-
-
-
-
-        # creating the id-string once for every diffusion function reduces the size of the pickled sid
-        #diffusion_function_id = str(ThermalBlockProblem) + '.diffusion_function'
-
-        #def diffusion_function_factory(x, y):
-        #    func = lambda X: (1. * (X[..., 0] >= x * dx) * (X[..., 0] < (x + 1) * dx)
-        #                         * (X[..., 1] >= y * dy) * (X[..., 1] < (y + 1) * dy))
-        #    inject_sid(func, diffusion_function_id, x, y, dx, dy)
-        #    return GenericFunction(func, dim_domain=2, name='diffusion_function_{}_{}'.format(x, y))
-
-        #def parameter_functional_factory(x, y):
-        #    return ProjectionParameterFunctional(component_name='diffusion',
-         #                                        component_shape=(num_blocks[1], num_blocks[0]),
-         #                                        coordinates=(num_blocks[1] - y - 1, x),
-        #                                         name='diffusion_{}_{}'.format(x, y))
-
-        #diffusion_functions = tuple(diffusion_function_factory(x, y)
-        #                            for x, y in product(xrange(num_blocks[0]), xrange(num_blocks[1])))
-        #parameter_functionals = tuple(parameter_functional_factory(x, y)
-        #                              for x, y in product(xrange(num_blocks[0]), xrange(num_blocks[1])))
-
-        #super(ThermalBlockProblem, self).__init__(domain, rhs, diffusion_functions, parameter_functionals,
-        #                                          name='ThermalBlock')
         self.parameter_space = parameter_space
         self.parameter_range = parameter_range

@@ -14,9 +14,8 @@ from pymor.functions import GenericFunction
 from pymor.parameters.spaces import CubicParameterSpace
 from pymor.analyticalproblems import Legendre
 from pymor.la import NumpyVectorArray
-from pymordemos.Legendre_Discr import basis_discr
 from pymordemos.rb_to_fp import rb_solutions
-from pymor.parameters.base import Parameter
+
 
 
 class FPProblem(InstationaryAdvectionProblem, Unpicklable):
@@ -25,88 +24,76 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
     The problem is to solve ::
 
         ∂_t p(x, t)  +  A* ∂_x p(x, t)) = - (sigma(x,t) I + 1/2 T(x,t) S) p(x,t) + q(x,t)
-                                       p(x, 0) = p_0(x)
+                                p(x, 0) = p_0(x)
 
     for p \in R^m
 
     Parameters
     ----------
-    initial_data_type
-        Type of initial data (`'sin'` or `'bump'`).
-    parameter_range
-        The interval in which μ is allowed to vary.
+    sysdim
+        Dimension m of the system
+    problem
+        Name of the problem to solve
+    CFLtype
+
     '''
 
-    def __init__(self,sysdim, problem, CFLtype, basis_type='leg'):
+    def __init__(self, sysdim, problem, CFLtype, basis_type='leg'):
 
 
 
-        assert problem in ('2Beams','2Pulses','SourceBeam')
+        assert problem in ('2Beams','2Pulses','SourceBeam', 'SourceBeamNeu','RectIC')
 
         def basis_generation(type):
-
             if type=='leg':
-                discr=basis_discr(0,1000,[-1,1])
+                discr=Legendre.basis_discr(1000,[-1,1])
                 grid=discr.visualizer.grid
-                basis=Legendre.legpolchar(grid.quadrature_points(1,order=2)[:,0,0],sysdim)
-
-                #def fp_flux(U,mu):
-                #    #Matrizen fuer Legendre-Polynome
-                #    m=mu['m']
-                #    Minv=np.diag((2.*np.array(range(m+1))+1.)/2.)
-                #    A = np.diag(np.array(range(1,m+1))/(1.+2.*np.array(range(0,m))),1) +np.diag(np.array(range(1,m+1))/(1.+2.*np.array(range(1,m+1))),-1)
-                #    flux=np.dot(Minv,A)
-                #    if m == 0:
-                #        flux=flux[0,0]
-                #    return flux*U
-
-                #inject_sid(fp_flux, str(FPProblem) + '.fp_flux')
-
+                basis=Legendre.legpol(grid.quadrature_points(1,order=2)[:,0,0],sysdim)
 
             elif type == 'rb':
-                basis, discr = rb_solutions(return_rb=True, rb_size=sysdim)
+                basis, discr = rb_solutions(problemname=problem, return_rb=True, rb_size=sysdim, picklen=False)
                 grid=discr.visualizer.grid
 
+            elif type == 'picklen':
+                basis, discr = rb_solutions(problemname=problem, return_rb=True, rb_size=sysdim, picklen=True)
+                grid=discr.visualizer.grid
 
 
             mprod=discr.l2_product
             M=mprod.apply2(basis,basis,False)
+            Minv=np.linalg.inv(M)
             print(M)
             dprod=discr.absorb_product
             D=dprod.apply2(basis,basis,False)
+            MinvD=np.dot(Minv,D)
             print(D)
             sprod=discr.h1_product
             S=sprod.apply2(basis,basis,False)
+            MinvS=np.dot(Minv,S)
             print(S)
             basis_werte=mprod.apply2(NumpyVectorArray(np.ones(np.shape(grid.quadrature_points(1,order=2)[:,0,0]))),basis,False)
             print('basis_werte = {}'.format(basis_werte))
             basis_rand_l=basis.data[:,0]
             basis_rand_r=basis.data[:,-1]
-            return dict({'M':M, 'D':D,'S':S, 'basis_werte':basis_werte,'basis_rand_l':basis_rand_l,'basis_rand_r':basis_rand_r})
+            return dict({'Minv':Minv, 'MinvD':MinvD,'MinvS':MinvS,
+                         'basis_werte':basis_werte,'basis_rand_l':basis_rand_l,'basis_rand_r':basis_rand_r})
 
 
-            #if output == 'Matrices':
-            #    return M,D,S
-            #elif output == 'basis_werte':
-            #    return basis_werte
-            #elif output == 'fp_flux':
-            #    return fp_flux
-            #else:
-            #     print('no valid output')
 
         def fp_flux(U,mu):
             return U
         flux_function=GenericFunction(fp_flux, dim_domain=1, shape_range=(1,), parameter_type={'m':0})
 
 
+
         if problem == '2Pulses':
+
             domain = LineDomain([0., 7.])
             stoptime=7.
             matlabcfl=0.5
 
             def IC(x):
                 return 10.**(-4)
-
             def BCfuncl(t):
                 return 0
             def BCfuncr(t):
@@ -124,18 +111,15 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
                 return 0
 
 
+
         if problem == 'SourceBeam':
 
             domain = LineDomain([0.,3.])
-            stoptime=0.2
-            matlabcfl=0.001
-
+            stoptime=4.
+            matlabcfl=0.05
 
             def IC(x):
                 return 10.**(-4)
-
-
-
             def BCfuncl(t):
                 return 0
             def BCfuncr(t):
@@ -145,37 +129,86 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             def BCdeltar(t):
                 return 0
 
-
             def Qfunc(x):
                 return (x[...,0] >= 1)*(x[...,0]<= 1.5)
             def Tfunc(x):
                 return (2.*(x > 1)*(x <=2) + 10.*(x > 2)  )
-
             def absorbfunc(x):
                 return 1.*(x<=2)
 
 
 
+        if problem == 'SourceBeamNeu':
+
+            domain = LineDomain([0.,3.])
+            stoptime=0.1
+            matlabcfl=0.05
+
+            def IC(x):
+                return 10.**(-4)
+            def BCfuncl(t):
+                return 0
+            def BCfuncr(t):
+                return 10**(-4)
+            def BCdeltal(t):
+                return 1
+            def BCdeltar(t):
+                return 0
+
+            def Qfunc(x):
+                return (x[...,0] >= 0.5)*(x[...,0]<= 1.5)
+            def Tfunc(x):
+                return (2.*(x > 1)*(x <=2) + 10.*(x > 2)  )
+            def absorbfunc(x):
+                return 1.*(x<=2)
+
+
+
+        if problem == 'RectIC':
+
+            domain = LineDomain([0.,7.])
+            stoptime=8
+            matlabcfl=0.01
+
+            def IC(x):
+                return 10.**(-4)*(x[...,0]<3)+ 10.**(-4)*(x[...,0]>4) + 10*(x[...,0]>=3)*(x[...,0]<=4)
+            def BCfuncl(t):
+                return 10**(-4)
+            def BCfuncr(t):
+                return 10**(-4)
+            def BCdeltal(t):
+                return 0
+            def BCdeltar(t):
+                return 0
+
+            def Qfunc(x):
+                return 0
+            def Tfunc(x):
+                return 1.
+            def absorbfunc(x):
+                return 0
 
 
 
 #####################
 
-        def initfunc(x,mu): #berechnet L2-Produkte mit Basisfunktionen
+
+        def initfunc(x,mu):
             basis_werte=mu['basis_werte']
             initial=IC(x)
             return initial*basis_werte[0,mu['komp']]+ x[...,0]*0
-
         initial_data=GenericFunction(initfunc,dim_domain=1,parameter_type={'komp':0, 'basis_werte':(1,sysdim)})
 
+
         def dirichfunc(x,mu):
-            basis_werte=mu['basis_werte']
-            basis_rand_l=mu['basis_rand_l']
-            basis_rand_r=mu['basis_rand_r']
-            dirichlet= BCfuncl(mu['_t'])*basis_werte[0,mu['komp']]*(x[...,0]<=0) + BCfuncr(mu['_t'])*basis_werte[0,mu['komp']]*(x[...,0]>0)
+            basis_werte=np.dot(mu['Minv'],mu['basis_werte'][0,:])
+            basis_rand_l=np.dot(mu['Minv'],mu['basis_rand_l'])
+            basis_rand_r=np.dot(mu['Minv'],mu['basis_rand_r'])
+            dirichlet= BCfuncl(mu['_t'])*basis_werte[mu['komp']]*(x[...,0]<=0) + BCfuncr(mu['_t'])*basis_werte[mu['komp']]*(x[...,0]>0)
             wl=BCdeltal(mu['_t'])
             wr=BCdeltar(mu['_t'])
-            dirichlet += ( wl*basis_rand_r[mu['komp']]*(x[...,0]<=0) +  wr*basis_rand_l[mu['komp']]*(x[...,0]>0))*0.5 #0.5 wegen delta distr am rand
+            dirichlet += ( wl*basis_rand_r[mu['komp']]*(x[...,0]<=0)
+                           +  wr*basis_rand_l[mu['komp']]*(x[...,0]>0))*0.5 #0.5 wegen delta distr am rand
             return dirichlet
         dirich_data=GenericFunction(dirichfunc,dim_domain=1,parameter_type={'m':0,'_t':0,'komp':0})
 
@@ -183,25 +216,27 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
         def low_ord(UX,mu):
             lo=0*UX[...,0]
             Tx=Tfunc(UX[...,0])/2.
-            S=mu['S']
-            SU=np.dot(S,UX[...,1:sysdim+1].T)
+            MinvS=mu['MinvS']
+            SU=np.dot(MinvS,UX[...,1:sysdim+1].T)
             lo+=Tx*SU[mu['komp'],:]
             absorb=absorbfunc(UX[...,0])
             lo+=absorb*UX[:,mu['komp']+1]
             return lo
         low_order=GenericFunction(low_ord,dim_domain=sysdim+1,parameter_type={'komp':0})
 
+
         def source_func(x,mu):
             basis_werte=mu['basis_werte']
+            Minv=mu['Minv']
+            Minvphi=np.dot(Minv,basis_werte[0,:])
             Q=Qfunc(x)
-            return Q*basis_werte[0,mu['komp']] + x[...,0]*0
-
-
+            return Q*Minvphi[mu['komp']] + x[...,0]*0
         source_data=GenericFunction(source_func,dim_domain=1,parameter_type={'komp':0})
         self.rhs=source_data
-        basis_dict=basis_generation(basis_type)
-        flux_matrix=basis_dict['D']
 
+
+        basis_dict=basis_generation(basis_type)
+        flux_matrix=basis_dict['MinvD']
 
 
         if CFLtype == 'matlab':
@@ -212,51 +247,23 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             print('CFL=')
             print(CFL)
         else:
-            raise NotImplementedError
+            CFL=None
 
 
-
-
-        #if problem == '2Beams':
-        #    domain = LineDomain([-0.5, 0.5])
-        #    stoptime=2.
-        #    matlabcfl=0.9
-
-            #def initfunc(x,mu):
-            #    if mu['komp']==0:
-            #        return x[...,0]*0+10.**(-4)*np.sqrt(2)
-            #    else:
-            #        return x[...,0]*0
-
-
-            #def dirichfunc(x,mu):
-                #dl,dr=Legendre.Sysdirichlet(400,mu['m'])
-            #    dl=Legendre.legpolchar(1.,mu['komp']+1)*0.5
-            #    dr=Legendre.legpolchar(-1.,mu['komp']+1)*0.5
-            #    A=((x[...,0]<=0.)*dl.data[0,-1] + (x[...,0]>0.)*dr.data[0,-1])*100
-            #    return A
-            #dirich_data=GenericFunction(dirichfunc,dim_domain=1,parameter_type={'m':0,'_t':0,'komp':0})
-
-         #   def absorbfunc(x):
-         #       return 4.
-
-#            Tfunc=None
-#            source_data=None
 
 
         super(FPProblem, self).__init__(domain=domain,
                                              rhs=source_data,
                                              flux_function=flux_function,
-                                             #low_order=low_order,
                                              initial_data=initial_data,
                                              dirichlet_data=dirich_data,
                                              T=stoptime, name='FPProblem')
 
         self.parameter_space = CubicParameterSpace({'komp':0,
                                                     'm':0,
-                                                    'M':(sysdim,sysdim),
-                                                    'S':(sysdim,sysdim),
-                                                    'D':(sysdim,sysdim),
+                                                    'Minv':(sysdim,sysdim),
+                                                    'MinvS':(sysdim,sysdim),
+                                                    'MinvD':(sysdim,sysdim),
                                                     'basis_werte':(1,sysdim),
                                                     'basis_rand_l':(sysdim,),
                                                     'basis_rand_r':(sysdim,)}

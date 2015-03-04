@@ -331,8 +331,132 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
             tvec=np.append(tvec,t)
             for j in range(sysdim):
                 U[j].axpy(dt,F_ass[j] -Ua[j])
+                if np.max(U[j].data) > 10000:
+                    raise ValueError
+                if n * (num_values / nt) > len(R[j]):
+                    R[j].append(U[j])
+               # R[j][n,:]=U[j].data
+
+#    for j in range(sysdim):
+#        R[j]=NumpyVectorArray(R[j])
+
+    return R,tvec
+
+def implicit_euler_ndim(sysdim,A, F, M, U0, t0, t1, nt, mu=None,invert_options=None, num_values=None):
+    assert isinstance(A, OperatorInterface)
+
+
+    assert isinstance(M, OperatorInterface)
+    assert not M.parametric
+    assert A.dim_source*sysdim == A.dim_range
+
+
+
+    if isinstance(F, OperatorInterface):
+        assert F.dim_range == 1
+        assert F.dim_source == A.dim_source
+        F_time_dep = F.parametric and '_t' in F.parameter_type
+        if not F_time_dep:
+            dt_F = F.as_vector(mu) * dt
+    else:
+        assert len(F) == 1
+        assert F.dim == A.dim_source
+        F_time_dep = False
+        dt_F = F * dt
+
+    assert isinstance(U0, VectorArrayInterface)
+    assert len(U0) == 1
+    assert U0.dim == A.dim_source
+
+    A_time_dep = A.parametric and '_t' in A.parameter_type
+
+
+
+
+
+    num_values = num_values or nt + 1
+
+
+    F_ass=dict.fromkeys(range(sysdim))
+
+    assert F is None or isinstance(F, (OperatorInterface))
+    if isinstance(F, OperatorInterface):
+        assert F.dim_range == 1
+        assert F.dim_source == A.dim_source
+        F_time_dep = F.parametric and '_t' in F.parameter_type
+        if not F_time_dep:
+            for j in range(sysdim):
+                mu['komp']=j
+                F_ass[j] = F.as_vector(mu)
+
+
+
+    #elif isinstance(F, VectorArrayInterface):
+    #    assert len(F) == 1
+    #    assert F[j].dim == A.dim_source
+    #    F_time_dep[j] = False
+    #    F_ass[j] = F[j]
+    for j in range(sysdim):
+        assert isinstance(U0[j], VectorArrayInterface)
+        assert len(U0[j]) == 1
+        assert U0[j].dim == A.dim_source
+
+    A_time_dep = A.parametric and '_t' in A.parameter_type
+    if hasattr(A, 'assemble') and not A_time_dep:
+        A = A.assemble(mu)
+
+
+    dt = (t1 - t0) / nt
+
+    R=dict.fromkeys(range(sysdim))
+    for j in range(sysdim):
+        #R[j]=np.zeros((nt,U0[j].dim))
+        #R[j][0,:]=U0[j].data
+        R[j] = A.type_source.empty(A.dim_source, reserve=num_values)
+        R[j].append(U0[j])
+
+
+    t = t0
+    tvec=np.array(t0)
+    U=dict.fromkeys(range(sysdim))
+    for j in range(sysdim):
+        U[j] = NumpyVectorArray(U0[j].copy())
+
+
+
+    if F is None:
+        for n in xrange(nt):
+            t += dt
+            print(t)
+            mu['_t'] = t
+            Ua=A.apply(U.copy(),mu=mu)
+            #if n * (num_values / nt) > len(R[0]):
+            tvec=np.append(tvec,t)
+            for j in range(sysdim):
+                U[j].axpy(dt,-Ua[j])
             #    if n * (num_values / nt) > len(R[j]):
+#                if j==0:
                 R[j].append(U[j])
+                #R[j][n,:]=U[j].data
+
+
+    else:
+        for n in xrange(nt):
+            t += dt
+            print(t)
+            mu['_t'] = t
+            if F_time_dep:
+                for j in range(sysdim):
+                    mu['komp']=j
+                    F_ass[j] = F.as_vector(mu)
+
+            Ua=A.apply(U.copy(),mu=mu)
+            #if n * (num_values / nt) > len(R[0]):
+            tvec=np.append(tvec,t)
+            for j in range(sysdim):
+                U[j].axpy(dt,F_ass[j] -Ua[j])
+                if n * (num_values / nt) > len(R[j]):
+                    R[j].append(U[j])
                # R[j][n,:]=U[j].data
 
 #    for j in range(sysdim):

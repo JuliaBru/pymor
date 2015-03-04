@@ -13,6 +13,7 @@ from pymor.la import VectorArrayInterface
 from pymor.la.gram_schmidt import gram_schmidt
 from pymor.operators import OperatorInterface
 from pymor.tools import float_cmp_all
+from pymor.la import NumpyVectorArray
 
 
 def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=None,
@@ -71,7 +72,13 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     check = defaults.pod_check if check is None else check
     check_tol = defaults.pod_check_tol if check_tol is None else check_tol
 
-    B = A.gramian() if product is None else product.apply2(A, A, pairwise=False)
+
+    nfunc,ngrid=np.shape(A.data)
+    if nfunc <= ngrid: #compute POD with the smaller of the two matrices A.T A and A A.T
+        B = A.gramian() if product is None else product.apply2(A, A, pairwise=False)
+    else:
+        At=NumpyVectorArray(A.data.T)
+        B = (At).gramian() if product is None else product.apply2(At, At, pairwise=False)
 
     if symmetrize:     # according to rbmatlab this is necessary due to rounding
         B = B + B.T
@@ -91,7 +98,11 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     EVALS = EVALS[:last_above_tol + 1]
     EVECS = EVECS[:last_above_tol + 1]
 
-    POD = A.lincomb(EVECS / np.sqrt(EVALS[:, np.newaxis]))
+
+    if nfunc <= ngrid:
+        POD = A.lincomb(EVECS / np.sqrt(EVALS[:, np.newaxis]))
+    else:
+        POD=NumpyVectorArray(EVECS)
 
     if orthonormalize:
         POD = gram_schmidt(POD, product=product, copy=False, check=False)
@@ -104,4 +115,18 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
             err = np.max(np.abs(product.apply2(POD, POD, pairwise=False) - np.eye(len(POD))))
             raise AccuracyError('result not orthogonal (max err={})'.format(err))
 
-    return POD
+    return POD, EVALS
+
+
+
+
+
+
+
+
+
+
+
+
+
+

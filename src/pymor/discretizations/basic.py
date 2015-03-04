@@ -404,9 +404,9 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         self.num_values = num_values
         self.build_parameter_type(local_type=({'komp':0,
                                                     'm':0,
-                                                    'M':(sysdim,sysdim),
-                                                    'S':(sysdim,sysdim),
-                                                    'D':(sysdim,sysdim),
+                                                    'Minv':(sysdim,sysdim),
+                                                    'MinvS':(sysdim,sysdim),
+                                                    'MinvD':(sysdim,sysdim),
                                                     'basis_werte':(1,sysdim),
                                                     'basis_rand_l':(sysdim,),
                                                     'basis_rand_r':(sysdim,)}),local_global=True, inherits=(operator, rhs, mass,), provides={'_t': 0})
