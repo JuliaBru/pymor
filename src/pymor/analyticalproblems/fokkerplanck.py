@@ -38,14 +38,18 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
     '''
 
-    def __init__(self, sysdim, problem, CFLtype, basis_type='leg'):
+    def __init__(self, sysdim, problem, CFLtype, basis_type='leg', basis_pl_discr=None):
 
 
 
         assert problem in ('2Beams','2Pulses','SourceBeam', 'SourceBeamNeu','RectIC')
 
         def basis_generation(type):
-            if type=='leg':
+            if basis_pl_discr is not None:
+                (basis,discr)=basis_pl_discr
+                assert basis._len==sysdim
+                grid=discr.visualizer.grid
+            elif type=='leg':
                 discr=Legendre.basis_discr(1000,[-1,1])
                 grid=discr.visualizer.grid
                 basis=Legendre.legpol(grid.quadrature_points(1,order=2)[:,0,0],sysdim)
@@ -62,17 +66,17 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             mprod=discr.l2_product
             M=mprod.apply2(basis,basis,False)
             Minv=np.linalg.inv(M)
-            print(M)
+            #print(M)
             dprod=discr.absorb_product
             D=dprod.apply2(basis,basis,False)
             MinvD=np.dot(Minv,D)
-            print(D)
+            #print(D)
             sprod=discr.h1_product
             S=sprod.apply2(basis,basis,False)
             MinvS=np.dot(Minv,S)
-            print(S)
+            #print(S)
             basis_werte=mprod.apply2(NumpyVectorArray(np.ones(np.shape(grid.quadrature_points(1,order=2)[:,0,0]))),basis,False)
-            print('basis_werte = {}'.format(basis_werte))
+            #print('basis_werte = {}'.format(basis_werte))
             basis_rand_l=basis.data[:,0]
             basis_rand_r=basis.data[:,-1]
             return dict({'Minv':Minv, 'MinvD':MinvD,'MinvS':MinvS,
@@ -244,8 +248,8 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
         elif CFLtype == 'computed':
             Lambda,W =np.linalg.eig(flux_matrix)
             CFL=1./(2.*np.max(np.abs(Lambda)))
-            print('CFL=')
-            print(CFL)
+            #print('CFL=')
+            #print(CFL)
         else:
             CFL=None
 

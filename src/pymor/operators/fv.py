@@ -484,7 +484,7 @@ class AdvectionOperatorNDim(OperatorBase):
 
 
         Usys=U[0]
-        dirichlet_sys=[dirichlet_values[0]]
+        dirichlet_sys=np.array([dirichlet_values[0]])
         for k in range(1,self.sysdim):
             Usys=np.append(Usys,U[k],axis=0) #U.shape=(sysdim,xshape)
             dirichlet_sys=np.append(dirichlet_sys,[dirichlet_values[k]],axis=0)

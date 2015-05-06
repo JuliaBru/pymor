@@ -303,7 +303,7 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
     if F is None:
         for n in xrange(nt):
             t += dt
-            print(t)
+            #print(t)
             mu['_t'] = t
             Ua=A.apply(U.copy(),mu=mu)
             #if n * (num_values / nt) > len(R[0]):
@@ -319,7 +319,7 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
     else:
         for n in xrange(nt):
             t += dt
-            print(t)
+            #print(t)
             mu['_t'] = t
             if F_time_dep:
                 for j in range(sysdim):
@@ -427,7 +427,7 @@ def implicit_euler_ndim(sysdim,A, F, M, U0, t0, t1, nt, mu=None,invert_options=N
     if F is None:
         for n in xrange(nt):
             t += dt
-            print(t)
+            #print(t)
             mu['_t'] = t
             Ua=A.apply(U.copy(),mu=mu)
             #if n * (num_values / nt) > len(R[0]):
@@ -443,7 +443,7 @@ def implicit_euler_ndim(sysdim,A, F, M, U0, t0, t1, nt, mu=None,invert_options=N
     else:
         for n in xrange(nt):
             t += dt
-            print(t)
+            #print(t)
             mu['_t'] = t
             if F_time_dep:
                 for j in range(sysdim):

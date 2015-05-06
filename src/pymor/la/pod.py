@@ -78,7 +78,7 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
         B = A.gramian() if product is None else product.apply2(A, A, pairwise=False)
     else:
         At=NumpyVectorArray(A.data.T)
-        B = (At).gramian() if product is None else product.apply2(At, At, pairwise=False)
+        B = (At).gramian() #if product is None else product.apply2(At, At, pairwise=False)
 
     if symmetrize:     # according to rbmatlab this is necessary due to rounding
         B = B + B.T

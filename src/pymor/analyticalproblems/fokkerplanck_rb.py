@@ -188,7 +188,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     Tmatr[i,j]=Tfunc(xpoints[i],tpoints[j])
             F=np.multiply(np.multiply(P,P),Tmatr)
             ret=xt_quadrature(F,xdomain,tdomain)
-            #print('param_a={}'.format(ret))
+            print('param_a={}'.format(ret))
             return ret
 
 
@@ -211,6 +211,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
             dxP=mu['dxP']
             F=np.multiply(dxP,P)
             ret=xt_quadrature(F,xdomain,tdomain)
+            print('b={}'.format(ret))
             return ret
 
         def param_c(mu):
@@ -225,6 +226,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     sigmamatr[i,j]=absorbfunc(xpoints[i],tpoints[j])
             F=np.multiply(dtP,P)+np.multiply(np.multiply(P,P),sigmamatr)
             ret=xt_quadrature(F,xdomain,tdomain)
+            print('c={}'.format(ret))
             return ret
 
 
