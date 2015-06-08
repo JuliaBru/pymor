@@ -37,7 +37,7 @@ from pymor.la.pod import pod
 from datetime import datetime as date
 import time
 from docopt import docopt
-from pymordemos.fokkerplanck import fp_demo
+from pymordemos.fokkerplanck import fp_system
 from pymor.la.gram_schmidt import gram_schmidt
 import csv
 from pymor.parameters import CubicParameterSpace
@@ -98,7 +98,7 @@ sample=5
 
 
 
-def greedy_fp(mmax,imax,sample,seed=None):
+def greedy_fp(mmax,imax,sample,test_grid,seed=None):
 
     np.random.seed(seed)
 
@@ -146,7 +146,7 @@ def greedy_fp(mmax,imax,sample,seed=None):
 
 
     for m_ind in range(mmax):
-        args['--m']=m_ind+1
+        m=m_ind+1
         relerror[m_ind]=np.ones(sample*(imax*(m_ind+1)+1))*10000
 
         #Fehler bisherige Snapshots mit bestehender Basis
@@ -157,10 +157,11 @@ def greedy_fp(mmax,imax,sample,seed=None):
 
 
             print('m_ind={}, Fehler bisherige, ind={}'.format(m_ind,ind))
-            V,fp_discr=fp_demo(args,(Basis,mu_discr))
+            V,fp_discr=fp_system(m=m,basis_type='RB',n_grid=test_grid,basis_pl_discr=(Basis,mu_discr))
+
 
             relerror[m_ind][ind]=fperror(V,FPLoes)
-            args['--CFL']=0.65
+
 
         snapshot_min_ind=np.ma.argmin(relerror[m_ind])
 
@@ -226,7 +227,7 @@ def greedy_fp(mmax,imax,sample,seed=None):
 
 
                 print('m_ind={}, Fehler neue, i_ind={}, ind={}'.format(m_ind,i_ind,ind))
-                V,fp_discr=fp_demo(args,(Basis,mu_discr))
+                V,fp_discr=fp_system(m=m,basis_type='RB',n_grid=test_grid,basis_pl_discr=(Basis,mu_discr))
 
                 relerror[m_ind][snapshot_ind-1]=fperror(V,FPLoes)
                 args['--CFL']=0.65

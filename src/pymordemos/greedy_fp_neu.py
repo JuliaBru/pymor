@@ -37,7 +37,7 @@ from pymor.la.pod import pod
 from datetime import datetime as date
 import time
 from docopt import docopt
-from pymordemos.fokkerplanck import fp_demo
+from pymordemos.fokkerplanck import fp_system
 from pymor.la.gram_schmidt import gram_schmidt
 import csv
 
@@ -96,7 +96,8 @@ sample=30
 
 
 
-def greedy_fp(MaxOrdn,imax,sample,seed=None):
+def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
+
 
     np.random.seed(seed)
 
@@ -106,10 +107,12 @@ def greedy_fp(MaxOrdn,imax,sample,seed=None):
     problem=Fokkerplanck_V(problem='SourceBeam', delta=0, quadrature_count=(1,1),P_parameter_range=(0.01,1.2),
                            dxP_parameter_range=(-5.4,0.9),dtP_parameter_range=(0,5))
 
+    Beste=dict.fromkeys(range(MaxOrdn))
+
     n=250
     #grid=discretization.visualizer.grid
     discretization, _ = discretize_elliptic_cg_plus(problem, diameter=1 / n)
-    args = docopt(__doc__)
+
 
 
     FPLoes=np.zeros((1000,500))
@@ -124,7 +127,7 @@ def greedy_fp(MaxOrdn,imax,sample,seed=None):
 
 
     for m_ind in range(MaxOrdn):
-        args['--m']=m_ind+1
+        m=m_ind+1
         B=dict.fromkeys(range(imax*sample))
         Basis=dict.fromkeys(range(imax*sample))
         mudict=dict.fromkeys(range(imax*sample))
@@ -143,12 +146,12 @@ def greedy_fp(MaxOrdn,imax,sample,seed=None):
             Basis[sample_ind]=gram_schmidt(B[sample_ind],discretization.products['l2'])
             mudict[sample_ind]=mu
 
-            V[sample_ind],discr=fp_demo(args,Basis[sample_ind])
+            V[sample_ind],discr=fp_system(m=m,n_grid=test_grid,basis_type='RB',basis_pl_discr=(Basis[sample_ind],discretization))
 
             #relerror[sample_ind]=np.sum(np.abs(FPLoe.data-V[sample_ind].data))/np.sum(np.abs(FPLoe.data))
             relerror[sample_ind]=fperror(V[sample_ind],FPLoes)
             sample_ind+=1
-            args['--CFL']=0.65
+
 
         snapshot_min_ind=np.ma.argmin(relerror)
 
@@ -176,40 +179,38 @@ def greedy_fp(MaxOrdn,imax,sample,seed=None):
                 B[sample_ind].append(discretization.solve(mu))
                 Basis[sample_ind]=gram_schmidt(B[sample_ind],discretization.products['l2'])
 
-                while True:
-                    try:
-                        V[sample_ind],discr=fp_demo(args,Basis[sample_ind])
-                        break
-                    except ValueError:
-                        args['--CFL']*=0.75
-                        print('neue CFL={}'.format(args['--CFL']))
+                V[sample_ind],discr=fp_system(m=m,n_grid=test_grid,basis_type='RB',basis_pl_discr=(Basis[sample_ind],discretization))
+
 
                 #relerror[sample_ind]=np.sum(np.abs(FPLoe.data-V[sample_ind].data))/np.sum(np.abs(FPLoe.data))
                 relerror[sample_ind]=fperror(V[sample_ind],FPLoes)
-                args['--CFL']=0.65
                 snapshot_min_ind=np.ma.argmin(relerror)
 
         #Auswahl der besten Basis fuer naechstes m_ind
-        if False:
-            StartB[m_ind+1]=Basis[np.argmin(relerror)]
 
-
+        StartB[m_ind+1]=Basis[snapshot_min_ind]
 
 
         print('relerror m_ind={} : {}'.format(m_ind,relerror))
 
-        args['--grid']=500
-        while True:
-            try:
-                Vend,discr=fp_demo(args,Basis[np.argmin(relerror)])
-                break
-            except ValueError:
-                args['--CFL']*=0.75
-                print('neue CFL={}'.format(args['--CFL']))
-        args['--grid']=50
+        grid=500
+
+        Vend,discr=fp_system(m=m,basis_type='RB',basis_pl_discr=(Basis[snapshot_min_ind],discretization))
+        real_error=fperror(Vend,FPLoes)
+
+
+        Beste[m_ind]=(mudict[snapshot_min_ind],relerror[snapshot_min_ind],real_error)
 
         d=date.now()
-        with open('Greedy-Error {} m={} imax={} seed={}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),m_ind+1,imax,seed),'w') as csvfile:
+        with open('Greedy-Beste {} m={} imax={} snapshots={} grid={} seed={}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),m_ind+1,imax,sample,grid,seed),'w') as csvfile:
+            writer=csv.writer(csvfile)
+            writer.writerow(['P','Dirich-1', 'Dirich1', 'dtP', 'dxP', 'qtpoint', 'qxpoint', 'estimatedrelerror','realrelerror'])
+            i=snapshot_min_ind
+            writer.writerow([mudict[i]['P'][0,0],mudict[i]['dirich'][0],mudict[i]['dirich'][1],
+                            mudict[i]['dtP'][0,0], mudict[i]['dxP'][0,0], mudict[i]['qtpoint'], mudict[i]['qxpoint'],
+                            relerror[i],real_error])
+
+        with open('Greedy-Error {} m={} imax={} snapshots={} grid={} seed={}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),m_ind+1,imax,sample,grid,seed),'w') as csvfile:
             writer=csv.writer(csvfile)
             writer.writerow(['Nr.', 'P','Dirich-1', 'Dirich1', 'dtP', 'dxP', 'qtpoint', 'qxpoint', 'relerror'])
             for i in range(sample*imax):
@@ -217,18 +218,21 @@ def greedy_fp(MaxOrdn,imax,sample,seed=None):
                     writer.writerow([i,
                             mudict[i]['P'][0,0],mudict[i]['dirich'][0],mudict[i]['dirich'][1],
                             mudict[i]['dtP'][0,0], mudict[i]['dxP'][0,0], mudict[i]['qtpoint'], mudict[i]['qxpoint'],
-                            relerror[i],fperror(Vend,FPLoes)])
+                            relerror[i],real_error])
                 else:
                     writer.writerow([i,
                             mudict[i]['P'][0,0],mudict[i]['dirich'][0],mudict[i]['dirich'][1],
                             mudict[i]['dtP'][0,0], mudict[i]['dxP'][0,0], mudict[i]['qtpoint'], mudict[i]['qxpoint'],
                             relerror[i]])
 
-        pickle.dump((B,relerror) ,open('Snapshots {}.p'.format(d.strftime("%y-%m-%d %H:%M:%S")), "wb" ))
+
+        pickle.dump(mudict,open('mudict for m={}, sample={}, seed={} {}.p'.format(m, sample, seed, d.strftime("%y-%m-%d %H:%M:%S")), "wb" ))
+        pickle.dump(B,open('snapshots for m={}, sample={}, seed={} {}.p'.format(m, sample, seed, d.strftime("%y-%m-%d %H:%M:%S")), "wb" ))
+
+
+
+    return Vend,discr
 
 
 
 
-
-
-    print('Echter Fehler: {}'.format(fperror(Vend,FPLoes)))

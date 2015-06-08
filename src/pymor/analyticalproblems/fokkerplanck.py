@@ -14,7 +14,7 @@ from pymor.functions import GenericFunction
 from pymor.parameters.spaces import CubicParameterSpace
 from pymor.analyticalproblems import Legendre
 from pymor.la import NumpyVectorArray
-from pymordemos.rb_to_fp import rb_solutions
+
 
 
 
@@ -38,7 +38,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
     '''
 
-    def __init__(self, sysdim, problem, CFLtype, basis_type='leg', basis_pl_discr=None):
+    def __init__(self, sysdim, problem, basis_type='Leg', basis_pl_discr=None):
 
 
 
@@ -49,18 +49,10 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
                 (basis,discr)=basis_pl_discr
                 assert basis._len==sysdim
                 grid=discr.visualizer.grid
-            elif type=='leg':
+            elif type=='Leg':
                 discr=Legendre.basis_discr(1000,[-1,1])
                 grid=discr.visualizer.grid
                 basis=Legendre.legpol(grid.quadrature_points(1,order=2)[:,0,0],sysdim)
-
-            elif type == 'rb':
-                basis, discr = rb_solutions(problemname=problem, return_rb=True, rb_size=sysdim, picklen=False)
-                grid=discr.visualizer.grid
-
-            elif type == 'picklen':
-                basis, discr = rb_solutions(problemname=problem, return_rb=True, rb_size=sysdim, picklen=True)
-                grid=discr.visualizer.grid
 
 
             mprod=discr.l2_product
@@ -94,7 +86,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
             domain = LineDomain([0., 7.])
             stoptime=7.
-            matlabcfl=0.5
+
 
             def IC(x):
                 return 10.**(-4)
@@ -116,11 +108,38 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
 
+        if problem == '2Beams':
+
+            domain = LineDomain([-0.5, 0.5])
+            stoptime=2.
+
+
+
+            def IC(x):
+                return 10.**(-4 )
+            def BCfuncl(t):
+                return 0
+            def BCfuncr(t):
+                return 0
+            def BCdeltal(t):
+                return 100.
+            def BCdeltar(t):
+                return  100.
+
+            def Tfunc(x):
+                return 0
+            def absorbfunc(x):
+                return 4.
+            def Qfunc(x):
+                return 0
+
+
+
         if problem == 'SourceBeam':
 
             domain = LineDomain([0.,3.])
             stoptime=4.
-            matlabcfl=0.05
+
 
             def IC(x):
                 return 10.**(-4)
@@ -142,37 +161,11 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
 
-        if problem == 'SourceBeamNeu':
-
-            domain = LineDomain([0.,3.])
-            stoptime=0.1
-            matlabcfl=0.05
-
-            def IC(x):
-                return 10.**(-4)
-            def BCfuncl(t):
-                return 0
-            def BCfuncr(t):
-                return 10**(-4)
-            def BCdeltal(t):
-                return 1
-            def BCdeltar(t):
-                return 0
-
-            def Qfunc(x):
-                return (x[...,0] >= 0.5)*(x[...,0]<= 1.5)
-            def Tfunc(x):
-                return (2.*(x > 1)*(x <=2) + 10.*(x > 2)  )
-            def absorbfunc(x):
-                return 1.*(x<=2)
-
-
-
         if problem == 'RectIC':
 
             domain = LineDomain([0.,7.])
             stoptime=8
-            matlabcfl=0.01
+
 
             def IC(x):
                 return 10.**(-4)*(x[...,0]<3)+ 10.**(-4)*(x[...,0]>4) + 10*(x[...,0]>=3)*(x[...,0]<=4)
@@ -243,15 +236,6 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
         flux_matrix=basis_dict['MinvD']
 
 
-        if CFLtype == 'matlab':
-            CFL=matlabcfl
-        elif CFLtype == 'computed':
-            Lambda,W =np.linalg.eig(flux_matrix)
-            CFL=1./(2.*np.max(np.abs(Lambda)))
-            #print('CFL=')
-            #print(CFL)
-        else:
-            CFL=None
 
 
 
@@ -276,7 +260,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
         self.parameter_range=(0,20)
         self.flux_matrix=flux_matrix
         self.low_order=low_order
-        self.CFL=CFL
+
 
 
 

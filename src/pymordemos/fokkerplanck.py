@@ -4,36 +4,10 @@
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
-'''FP demo.
-
-Usage:
-  fokkerplanck.py [-hp] [--grid=NI] [--grid-type=TYPE] [--problem=TYPE] [--CFLtype=TYPE] [--CFL=VALUE]
-          [--num-flux=FLUX] [--m=COUNT] [--basis_type=TYPE]
-
-
-Options:
-  --grid=NI              Use grid with NI elements [default: 500].
-
-  --grid-type=TYPE       Type of grid to use (oned) [default: oned].
-
-  --problem=TYPE         Select the problem (2Beams, 2Pulses,SourceBeam, SourceBeamNeu,RectIC) [default: 2Beams].
-
-  --CFLtype=TYPE         Type of CFL to use (matlab,computed, given)  [default: given].
-
-  --CFL=VALUE            Value to use instead of CFL condition [default: 0.5]
-
-  --num-flux=FLUX        Numerical flux to use [default: godunov_upwind].
-
-  --m=COUNT              Dimension of the system [default: 1].
-
-  --basis_type=TYPE      Type of basis to use (Leg,RB,Picklen) [default: Leg].
-
-  -h, --help             Show this message.
+'''Solves system derived from Fokker-Planck equation
 
 
 '''
-
-
 
 import sys
 import csv
@@ -51,62 +25,60 @@ from pymor.analyticalproblems.fokkerplanck import FPProblem
 from pymor.grids import OnedGrid
 from datetime import datetime as date
 
-def fp_demo(args, basis_pl_discr=None):
-    args['--grid'] = int(args['--grid'])
-    args['--grid-type'] = args['--grid-type'].lower()
-    args['--basis_type'] = args['--basis_type'].lower()
-    assert args['--grid-type'] in ('oned')
-    args['--CFL']=float(args['--CFL'])
-    args['--m'] = int(args['--m'])
-    args['--num-flux'] = args['--num-flux'].lower()
-    assert args['--num-flux'] in ('godunov_upwind')
-    assert args['--CFLtype'] in ('matlab','computed','given')
-    assert args['--basis_type'] in ('leg','rb','picklen','picklen1','picklen2','picklen3')
+
+def fp_system(m, problem='SourceBeam', n_grid=500, basis_type='Leg',
+              num_flux='godunov_upwind', basis_pl_discr=None, save_pickled=False, save_csv=False):
+
+    assert problem in ('SourceBeam')
+    assert num_flux in ('godunov_upwind')
+    assert basis_type in ('Leg', 'RB')
+    assert (basis_type == 'Leg' and basis_pl_discr == None) or (basis_type == 'RB' and basis_pl_discr is not None)
 
     #print('Setup Problem ...')
-    grid_type_map = {'oned': OnedGrid}
-    domain_discretizer = partial(discretize_domain_default, grid_type=grid_type_map[args['--grid-type']])
-    problem = FPProblem(sysdim=args['--m'], problem=args['--problem'],CFLtype=args['--CFLtype'],basis_type=args['--basis_type'],basis_pl_discr=basis_pl_discr)
+    domain_discretizer = partial(discretize_domain_default, grid_type=OnedGrid)
+    problem = FPProblem(sysdim=m, problem=problem,
+                        basis_type=basis_type, basis_pl_discr=basis_pl_discr)
 
 
     #print('Discretize ...')
     discretizer = discretize_nonlinear_instationary_advection_fv_ndim
-    xwidth=problem.domain.domain[1]-problem.domain.domain[0]
-
-    if args['--CFLtype']=='given':
-        CFL=args['--CFL']
-    else:
-        CFL=problem.CFL
-
+    xwidth = problem.domain.domain[1] - problem.domain.domain[0]
 
 
 
     core.cache.clear_caches()
-    mu=problem.basis_dict
-    mu.update({'m':args['--m'] })
+    mu = problem.basis_dict
+    mu.update({'m': m})
 
     sys.stdout.flush()
     tic = time.time()
 
+
+
+
+    Lambda,W =np.linalg.eig(problem.flux_matrix)
+    CFL=min(1./(2.*np.max(np.abs(Lambda))),5.)
+
+
+
     while True:
         try:
-            discretization, data = discretizer(problem, args['--m'], diameter=float(xwidth) / args['--grid'],
-                                       num_flux=args['--num-flux'],
-                                       CFL=CFL, domain_discretizer=domain_discretizer, num_values=1000)
-            U,tvec = discretization.solve(mu)
+            discretization, data = discretizer(problem, m, diameter=float(xwidth) / n_grid,
+                                               num_flux=num_flux,
+                                               CFL=CFL, domain_discretizer=domain_discretizer, num_values=1000)
+
+            U, tvec = discretization.solve(mu)
             break
         except ValueError:
-            CFL*=0.75
+            CFL *= 0.75
             print('neue CFL={}'.format(CFL))
 
+    V = U[0] * 0
 
-    V=U[0]*0
+    for j in range(m):
+        V.axpy(mu['basis_werte'][0, j], U[j])
 
-    for j in range(args['--m']):
-        V.axpy(mu['basis_werte'][0,j],U[j])
-
-
-    #print('Solving took {}s'.format(time.time() - tic))
+    print('Solving took {}s'.format(time.time() - tic))
 
     # FPLoes=np.zeros((1000,500))
     # if True:
@@ -123,28 +95,21 @@ def fp_demo(args, basis_pl_discr=None):
     # FPLoe=NumpyVectorArray(FPLoes)
 
 
-    #discretization.visualize(V, title='{},{} {}'.format(args['--problem'], args['--basis_type'],args['--m']))
+    if save_csv == True:
+        d=date.now()
+        with open('{} {} {} m={}.csv'.format(problem,d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m),'w') as csvfile:
+            writer=csv.writer(csvfile)
+            for j in range(np.shape(V.data)[0]):
+                writer.writerow(V.data[j,:])
+
+    if save_pickled == True:
+        d=date.now()
+        pickle.dump((V,tvec) ,open( '{} {} {} m={}.p'.format(problem, d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m), "wb" ))
 
 
-    #d=date.now()
-    #with open('{} {} {}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),args['--basis_type'] ,args['--m'] ),'w') as csvfile:
-    #    writer=csv.writer(csvfile)
-    #    for j in range(np.shape(V.data)[0]):
-    #        writer.writerow(V.data[j,:])
-
-    #with open('zeiten.csv','w') as csvfile:
-    #    writer=csv.writer(csvfile)
-    #    writer.writerow(tvec)
-    #pickle.dump((V,tvec) ,open( '{} {} Mio {}.p'.format(d.strftime("%y-%m-%d %H:%M:%S"),args['--basis_type'] ,args['--m'] ), "wb" ))
     return V, discretization
 
 
-
-if __name__ == '__main__':
-    # parse arguments
-    args = docopt(__doc__)
-    # run demo
-    fp_demo(args)
 
 
 
