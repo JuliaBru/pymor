@@ -251,7 +251,7 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
     assert A.dim_source*sysdim == A.dim_range
     num_values = num_values or nt + 1
-
+    proz=0
 
     F_ass=dict.fromkeys(range(sysdim))
 
@@ -264,6 +264,8 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
             for j in range(sysdim):
                 mu['komp']=j
                 F_ass[j] = F.as_vector(mu)
+
+
 
 
 
@@ -300,9 +302,13 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
 
 
+
     if F is None:
         for n in xrange(nt):
             t += dt
+            if n/nt > proz:
+                print(t)
+                proz+=0.1
             #print(t)
             mu['_t'] = t
             Ua=A.apply(U.copy(),mu=mu)
@@ -319,6 +325,9 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
     else:
         for n in xrange(nt):
             t += dt
+            if n/nt > proz:
+                print(t)
+                proz+=0.1
             #print(t)
             mu['_t'] = t
             if F_time_dep:
@@ -427,6 +436,9 @@ def implicit_euler_ndim(sysdim,A, F, M, U0, t0, t1, nt, mu=None,invert_options=N
     if F is None:
         for n in xrange(nt):
             t += dt
+            if n/nt > proz:
+                print(t)
+                proz+=0.1
             #print(t)
             mu['_t'] = t
             Ua=A.apply(U.copy(),mu=mu)
@@ -442,8 +454,11 @@ def implicit_euler_ndim(sysdim,A, F, M, U0, t0, t1, nt, mu=None,invert_options=N
 
     else:
         for n in xrange(nt):
+            proz=0
             t += dt
-            #print(t)
+            if n/nt > proz:
+                print(t)
+                proz+=0.1
             mu['_t'] = t
             if F_time_dep:
                 for j in range(sysdim):

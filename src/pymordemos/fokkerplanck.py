@@ -26,17 +26,17 @@ from pymor.grids import OnedGrid
 from datetime import datetime as date
 
 
-def fp_system(m, problem='SourceBeam', n_grid=500, basis_type='Leg',
+def fp_system(m, problem_name='SourceBeam', n_grid=500, basis_type='Leg',
               num_flux='godunov_upwind', basis_pl_discr=None, save_pickled=False, save_csv=False):
 
-    assert problem in ('SourceBeam')
+    #assert problem in ('SourceBeam')
     assert num_flux in ('godunov_upwind')
     assert basis_type in ('Leg', 'RB')
     assert (basis_type == 'Leg' and basis_pl_discr == None) or (basis_type == 'RB' and basis_pl_discr is not None)
 
     #print('Setup Problem ...')
     domain_discretizer = partial(discretize_domain_default, grid_type=OnedGrid)
-    problem = FPProblem(sysdim=m, problem=problem,
+    problem = FPProblem(sysdim=m, problem=problem_name,
                         basis_type=basis_type, basis_pl_discr=basis_pl_discr)
 
 
@@ -97,14 +97,14 @@ def fp_system(m, problem='SourceBeam', n_grid=500, basis_type='Leg',
 
     if save_csv == True:
         d=date.now()
-        with open('{} {} {} m={}.csv'.format(problem,d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m),'w') as csvfile:
+        with open('{} {} {} m={}.csv'.format(problem_name,d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m),'w') as csvfile:
             writer=csv.writer(csvfile)
             for j in range(np.shape(V.data)[0]):
                 writer.writerow(V.data[j,:])
 
     if save_pickled == True:
         d=date.now()
-        pickle.dump((V,tvec) ,open( '{} {} {} m={}.p'.format(problem, d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m), "wb" ))
+        pickle.dump((V,tvec) ,open( '{} {} {} m={}.p'.format(problem_name, d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m), "wb" ))
 
 
     return V, discretization

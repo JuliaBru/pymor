@@ -73,12 +73,13 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     check_tol = defaults.pod_check_tol if check_tol is None else check_tol
 
 
-    nfunc,ngrid=np.shape(A.data)
-    if nfunc <= ngrid: #compute POD with the smaller of the two matrices A.T A and A A.T
+    MemError=False
+    try:
         B = A.gramian() if product is None else product.apply2(A, A, pairwise=False)
-    else:
+    except(MemoryError):
         At=NumpyVectorArray(A.data.T)
         B = (At).gramian() #if product is None else product.apply2(At, At, pairwise=False)
+        MemError=True
 
     if symmetrize:     # according to rbmatlab this is necessary due to rounding
         B = B + B.T
@@ -99,7 +100,7 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     EVECS = EVECS[:last_above_tol + 1]
 
 
-    if nfunc <= ngrid:
+    if MemError==False:#nfunc <= ngrid:
         POD = A.lincomb(EVECS / np.sqrt(EVALS[:, np.newaxis]))
     else:
         POD=NumpyVectorArray(EVECS)

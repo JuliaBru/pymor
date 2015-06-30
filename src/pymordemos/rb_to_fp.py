@@ -69,6 +69,7 @@ def pod_from_snapshots(snapshots, n_grid=500, rb_size=25, problemname='SourceBea
 
 
 
+
     if save_snapshots:
         pickle.dump(V,open( "rb-daten {}, n={} {}.p".format(snapshots,n_grid,d.strftime("%y-%m-%d %H:%M:%S")), "wb" ))
 
@@ -88,4 +89,4 @@ def pod_from_snapshots(snapshots, n_grid=500, rb_size=25, problemname='SourceBea
 
 if __name__ == '__main__':
     #args = docopt(__doc__)
-    rb_solutions()
+    pod_from_snapshots(20,n_grid=200,rb_size=15)

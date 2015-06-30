@@ -6,7 +6,10 @@ from greedy_fp_neu import greedy_fp
 import time
 import numpy as np
 import csv
+from pymor.la import NumpyVectorArray
+import pickle
 
+from pymor.la.pod import pod
 tic=time.time()
 
 #POD from random snapshots
@@ -17,8 +20,12 @@ if False:
 
 #Legendre
 if True:
-    fpsol,x_discr=fp_system(m=2,basis_type='Leg')
-    x_discr.visualize(fpsol)
+    fpsol,x_discr=fp_system(m=16,basis_type='Leg',problem_name='2Beams',n_grid=500,save_csv=False,save_pickled=False)
+
+
+
+
+
 
 
 #Greedy Variante 1
@@ -47,7 +54,7 @@ toc=time.time()
 #Berechnung mit vorher gepickleter Basis
 #if True:
 
-Compute_Error=True
+Compute_Error=False
 
 if Compute_Error == True:
 
@@ -60,5 +67,7 @@ if Compute_Error == True:
                 FPLoes[i,j]=float(row[j])
             i+=1
 
+
     print('Error of reduced solution is {}'.format(fperror(fpsol,FPLoes)))
     print('Solving took {} s'.format(toc-tic))
+    x_discr.visualize(NumpyVectorArray(FPLoes))

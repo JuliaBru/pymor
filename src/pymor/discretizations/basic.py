@@ -442,8 +442,8 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         mu = self.parse_parameter(mu).copy() if mu is not None else Parameter({})
 
         # explicitly checking if logging is disabled saves the expensive str(mu) call
-        if not self.logging_disabled:
-            self.logger.info('Solving {} for {} ...'.format(self.name, mu))
+        #if not self.logging_disabled:
+        #    self.logger.info('Solving {} for {} ...'.format(self.name, mu))
 
         mu['_t'] = 0
         U0=dict.fromkeys(range(self.sysdim))

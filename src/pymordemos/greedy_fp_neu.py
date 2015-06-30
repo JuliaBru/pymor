@@ -96,13 +96,19 @@ sample=30
 
 
 
-def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
-
-
-    np.random.seed(seed)
+def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None,Startbasis=None):
 
     StartB=dict.fromkeys(range(MaxOrdn))
     StartB[0]=NumpyVectorArray.empty(501)
+    np.random.seed(seed)
+    mnull=0
+
+    if Startbasis is not None:
+        mnull=Startbasis._len
+        StartB[mnull]=Startbasis
+
+
+
 
     problem=Fokkerplanck_V(problem='SourceBeam', delta=0, quadrature_count=(1,1),P_parameter_range=(0.01,1.2),
                            dxP_parameter_range=(-5.4,0.9),dtP_parameter_range=(0,5))
@@ -126,7 +132,7 @@ def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
             i+=1
 
 
-    for m_ind in range(MaxOrdn):
+    for m_ind in range(mnull,MaxOrdn):
         m=m_ind+1
         B=dict.fromkeys(range(imax*sample))
         Basis=dict.fromkeys(range(imax*sample))
@@ -139,8 +145,10 @@ def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
         i_ind=0
         print('m_ind={}'.format(m_ind))
         print('Berechnung erste Basisvektoren')
-
+        printind=0
         for mu in problem.parameter_space.sample_randomly(sample):
+            print('Sample No. {}'.format(printind))
+            printind+=1
             B[sample_ind]=NumpyVectorArray(StartB[m_ind].data)
             B[sample_ind].append(discretization.solve(mu))
             Basis[sample_ind]=gram_schmidt(B[sample_ind],discretization.products['l2'])
@@ -148,7 +156,6 @@ def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
 
             V[sample_ind],discr=fp_system(m=m,n_grid=test_grid,basis_type='RB',basis_pl_discr=(Basis[sample_ind],discretization))
 
-            #relerror[sample_ind]=np.sum(np.abs(FPLoe.data-V[sample_ind].data))/np.sum(np.abs(FPLoe.data))
             relerror[sample_ind]=fperror(V[sample_ind],FPLoes)
             sample_ind+=1
 
@@ -182,7 +189,6 @@ def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
                 V[sample_ind],discr=fp_system(m=m,n_grid=test_grid,basis_type='RB',basis_pl_discr=(Basis[sample_ind],discretization))
 
 
-                #relerror[sample_ind]=np.sum(np.abs(FPLoe.data-V[sample_ind].data))/np.sum(np.abs(FPLoe.data))
                 relerror[sample_ind]=fperror(V[sample_ind],FPLoes)
                 snapshot_min_ind=np.ma.argmin(relerror)
 
@@ -202,7 +208,7 @@ def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
         Beste[m_ind]=(mudict[snapshot_min_ind],relerror[snapshot_min_ind],real_error)
 
         d=date.now()
-        with open('Greedy-Beste {} m={} imax={} snapshots={} grid={} seed={}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),m_ind+1,imax,sample,grid,seed),'w') as csvfile:
+        with open('Greedy-Beste {} m={} imax={} snapshots={} grid={} seed={}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),m_ind+1,imax,sample,test_grid,seed),'w') as csvfile:
             writer=csv.writer(csvfile)
             writer.writerow(['P','Dirich-1', 'Dirich1', 'dtP', 'dxP', 'qtpoint', 'qxpoint', 'estimatedrelerror','realrelerror'])
             i=snapshot_min_ind
@@ -210,7 +216,7 @@ def greedy_fp(MaxOrdn,imax,sample,test_grid,seed=None):
                             mudict[i]['dtP'][0,0], mudict[i]['dxP'][0,0], mudict[i]['qtpoint'], mudict[i]['qxpoint'],
                             relerror[i],real_error])
 
-        with open('Greedy-Error {} m={} imax={} snapshots={} grid={} seed={}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),m_ind+1,imax,sample,grid,seed),'w') as csvfile:
+        with open('Greedy-Error {} m={} imax={} snapshots={} grid={} seed={}.csv'.format(d.strftime("%y-%m-%d %H:%M:%S"),m_ind+1,imax,sample,test_grid,seed),'w') as csvfile:
             writer=csv.writer(csvfile)
             writer.writerow(['Nr.', 'P','Dirich-1', 'Dirich1', 'dtP', 'dxP', 'qtpoint', 'qxpoint', 'relerror'])
             for i in range(sample*imax):

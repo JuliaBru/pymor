@@ -233,13 +233,13 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
         self.absorb_functions=(GenericFunction(a0func,dim_domain=1),GenericFunction(a1func,dim_domain=1))
 
         self.absorb_functionals=(GenericParameterFunctional(param_b,{'P':(quadrature_count[0], quadrature_count[1]),
-                                                                        'dxP':(quadrature_count[0], quadrature_count[1]),
-                                                                        'dtP':(quadrature_count[0], quadrature_count[1]),
+                                                                        'dxP' : (quadrature_count[0], quadrature_count[1]),
+                                                                        'dtP' : (quadrature_count[0], quadrature_count[1]),
                                                                         'qxpoint':0,'qtpoint':0}),
                                  GenericParameterFunctional(param_c,{'P':(quadrature_count[0], quadrature_count[1]),
-                                                                        'dxP':(quadrature_count[0], quadrature_count[1]),
-                                                                        'dtP':(quadrature_count[0], quadrature_count[1]),
-                                                                        'qxpoint':0,'qtpoint':0}))
+                                                                        'dxP' : (quadrature_count[0], quadrature_count[1]),
+                                                                        'dtP' : (quadrature_count[0], quadrature_count[1]),
+                                                                        'qxpoint' : 0,'qtpoint' : 0}))
 
         def rhs_func(v,mu):
             P=mu['P']
