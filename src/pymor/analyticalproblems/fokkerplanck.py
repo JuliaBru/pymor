@@ -196,9 +196,9 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
         def initfunc(x,mu):
-            basis_werte=mu['basis_werte']
+            basis_werte=np.dot(mu['Minv'],mu['basis_werte'][0,:])
             initial=IC(x)
-            return initial*basis_werte[0,mu['komp']]+ x[...,0]*0
+            return initial*basis_werte[mu['komp']]+ x[...,0]*0
         initial_data=GenericFunction(initfunc,dim_domain=1,parameter_type={'komp':0, 'basis_werte':(1,sysdim)})
 
 

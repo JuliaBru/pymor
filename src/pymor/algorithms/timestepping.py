@@ -312,8 +312,8 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
             #print(t)
             mu['_t'] = t
             Ua=A.apply(U.copy(),mu=mu)
-            #if n * (num_values / nt) > len(R[0]):
-            tvec=np.append(tvec,t)
+            if n * (num_values / nt) > len(R[0]):
+                tvec=np.append(tvec,t)
             for j in range(sysdim):
                 U[j].axpy(dt,-Ua[j])
             #    if n * (num_values / nt) > len(R[j]):
@@ -336,8 +336,9 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
                     F_ass[j] = F.as_vector(mu)
 
             Ua=A.apply(U.copy(),mu=mu)
-            #if n * (num_values / nt) > len(R[0]):
-            tvec=np.append(tvec,t)
+
+            if n * (num_values / nt) > len(R[0]):
+                tvec=np.append(tvec,t)
             for j in range(sysdim):
                 U[j].axpy(dt,F_ass[j] -Ua[j])
                 if np.max(U[j].data) > 10000:
