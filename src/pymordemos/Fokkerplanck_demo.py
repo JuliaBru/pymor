@@ -20,7 +20,7 @@ if False:
 
 #Legendre
 if True:
-    fpsol,x_discr=fp_system(m=6,basis_type='Leg',problem_name='2Beams',n_grid=500,save_csv=False,save_pickled=False, CFL_type='Manual', CFL=1.)
+    fpsol,x_discr=fp_system(m=6,basis_type='Leg',problem_name='2Beams',n_grid=100,save_csv=True,save_time=True, save_pickled=False, CFL_type='Auto')
     x_discr.visualize(fpsol)
 
 
