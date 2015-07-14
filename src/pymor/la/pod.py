@@ -75,8 +75,11 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
 
     MemError=False
     try:
+        if A._len > 15000:
+            MemoryError
         B = A.gramian() if product is None else product.apply2(A, A, pairwise=False)
     except(MemoryError):
+        print('MemoryError')
         At=NumpyVectorArray(A.data.T)
         B = (At).gramian() #if product is None else product.apply2(At, At, pairwise=False)
         MemError=True

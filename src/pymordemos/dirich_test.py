@@ -57,7 +57,10 @@ dirich2=dirich2/(np.sqrt(v_discr.products['l2'].apply2(NumpyVectorArray(dirich2)
 dirich3=Deltae3.evaluate(v_discr.visualizer.grid.centers(1))[:,0]
 dirich3=dirich3/(np.sqrt(v_discr.products['l2'].apply2(NumpyVectorArray(dirich3),NumpyVectorArray(dirich3),pairwise=False)))
 dirich4=Deltae4.evaluate(v_discr.visualizer.grid.centers(1))[:,0]
+dirich4n=Deltae4.evaluate(v_discr.visualizer.grid.centers(1))[:,0]
+dirich4n*=(dirich4n > 0.0001)
 dirich4=dirich4/(np.sqrt(v_discr.products['l2'].apply2(NumpyVectorArray(dirich4),NumpyVectorArray(dirich4),pairwise=False)))
+dirich4n=dirich4n/(np.sqrt(v_discr.products['l2'].apply2(NumpyVectorArray(dirich4n),NumpyVectorArray(dirich4n),pairwise=False)))
 
 dirichk=Deltaek.evaluate(v_discr.visualizer.grid.centers(1))[:,0]
 dirichk=dirichk/(np.sqrt(v_discr.products['l2'].apply2(NumpyVectorArray(dirichk),NumpyVectorArray(dirichk),pairwise=False)))
@@ -87,16 +90,16 @@ with open('fploes.csv', 'rb') as csvfile:
 
 
 ####################################################################################### 20 20 20 20 20 20 20
-# V=pickle.load(open("rb-daten 20000, Nr. 0 15-01-29 16:57:02.p",'rb'))
+V=pickle.load(open("rb-daten 20000, Nr. 0 15-01-29 16:57:02.p",'rb'))
 POD=dict.fromkeys(range(10))
-#RB=dict.fromkeys(range(4))
+RB=dict.fromkeys(range(5))
 #
 #
 #
 #
 #
 #
-# POD[0],_=pod(NumpyVectorArray(V.data[2000:2020,:]),modes=16)
+POD[0],_=pod(NumpyVectorArray(V.data[2000:2020,:]),modes=16)
 #
 #
 #
@@ -133,7 +136,7 @@ POD=dict.fromkeys(range(10))
 #
 #
 # #
-# POD[0],_=pod(NumpyVectorArray(V.data[0:200,:]),modes=16)
+#POD[0],_=pod(NumpyVectorArray(V.data[0:200,:]),modes=16)
 # POD[1],_=pod(NumpyVectorArray(V.data[200:400,:]),modes=16)
 # POD[2],_=pod(NumpyVectorArray(V.data[400:600,:]),modes=16)
 # POD[3],_=pod(NumpyVectorArray(V.data[600:800,:]),modes=16)
@@ -166,7 +169,7 @@ POD=dict.fromkeys(range(10))
 # # #
 # # #
 #
-# V4=pickle.load(open("rb-daten 20000, Nr. 4 15-01-29 19:26:52.p",'rb'))
+#V4=pickle.load(open("rb-daten 20000, Nr. 4 15-01-29 19:26:52.p",'rb'))
 #
 #
 #
@@ -181,7 +184,7 @@ POD=dict.fromkeys(range(10))
 # POD[6],_=pod(NumpyVectorArray(V4.data[12000:14000,:]),modes=17)
 # POD[7],_=pod(NumpyVectorArray(V4.data[14000:16000,:]),modes=17)
 # POD[8],_=pod(NumpyVectorArray(V4.data[16000:18000,:]),modes=17)
-# POD[9],_=pod(NumpyVectorArray(V4.data[18000:20000,:]),modes=17)
+#POD[9],_=pod(NumpyVectorArray(V4.data[18000:20000,:]),modes=17)
 # V4=None
 # #
 # #
@@ -203,28 +206,28 @@ POD=dict.fromkeys(range(10))
 #
 
 
-V=pickle.load(open("rb-daten 20000, Nr. 0 15-01-29 16:57:02.p",'rb'))
-
+#V=pickle.load(open("rb-daten 20000, Nr. 0 15-01-29 16:57:02.p",'rb'))
+#print('Import ready.')
 #V.append(pickle.load(open("rb-daten 20000, Nr. 1 15-01-29 17:34:45.p",'rb')))
-# POD[1],_=pod(V,modes=20)
+#POD[1],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 2 15-01-29 18:11:45.p",'rb')))
-# POD[2],_=pod(V,modes=20)
+#POD[2],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 3 15-01-29 18:49:19.p",'rb')))
-# POD[3],_=pod(V,modes=20)
+#POD[3],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 4 15-01-29 19:26:52.p",'rb')))
-# POD[4],_=pod(V,modes=20)
+#POD[4],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 5 15-01-29 20:06:57.p",'rb')))
-# POD[5],_=pod(V,modes=20)
+#POD[5],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 6 15-01-29 20:44:31.p",'rb')))
-# POD[6],_=pod(V,modes=20)
+#POD[6],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 7 15-01-29 21:22:19.p",'rb')))
-# POD[7],_=pod(V,modes=20)
+#POD[7],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 8 15-01-29 22:00:46.p",'rb')))
-# POD[8],_=pod(V,modes=20)
+#POD[8],_=pod(V,modes=20)
 #V.append(pickle.load(open("rb-daten 20000, Nr. 9 15-01-29 22:39:03.p",'rb')))
-# POD[9],_=pod(V,modes=20)
+#POD[9],_=pod(V,modes=20)
 
-
+#print('Computing POD...')
 #POD[0],_=pod(NumpyVectorArray(V.data),modes=17)
 Vektoren1=NumpyVectorArray(dirich1)
 Vektoren2=NumpyVectorArray(dirich2)
@@ -232,49 +235,42 @@ Vektoren3=NumpyVectorArray(dirich3)
 Vektoren4=NumpyVectorArray(dirich4)
 Vektorenk=NumpyVectorArray(dirichk)
 
-v_discr.visualize((Vektoren1,Vektoren2,Vektoren3,Vektoren4,Vektorenk), legend=('Vektoren1','Vektoren2','Vektoren3','Vektoren4','Vektorenk'))
+#v_discr.visualize((Vektoren1,Vektoren2,Vektoren3,Vektoren4,Vektorenk), legend=('Vektoren1','Vektoren2','Vektoren3','Vektoren4','Vektorenk'))
 
-# Vektoren1.append(POD[0])
-# RB[0]=gram_schmidt(Vektoren1,product=v_discr.products['l2'],offset=0,check=True)
-#
-#
-#
-#
-# Vektoren2.append(POD[0])
-# RB[1]=gram_schmidt(Vektoren2,product=v_discr.products['l2'],offset=0,check=True)
-#
-#
-#
-# Vektoren3.append(POD[0])
-# RB[2]=gram_schmidt(Vektoren3,product=v_discr.products['l2'],offset=0,check=True)
-#
-#
-#
-# Vektoren4.append(POD[0])
-# RB[3]=gram_schmidt(Vektoren4,product=v_discr.products['l2'],offset=0,check=True)
+Vektoren1.append(POD[0])
+RB[0]=gram_schmidt(Vektoren1,product=v_discr.products['l2'],offset=0,check=True)
+
+Vektoren2.append(POD[0])
+RB[1]=gram_schmidt(Vektoren2,product=v_discr.products['l2'],offset=0,check=True)
+
+Vektoren3.append(POD[0])
+RB[2]=gram_schmidt(Vektoren3,product=v_discr.products['l2'],offset=0,check=True)
+
+Vektoren4.append(POD[0])
+RB[3]=gram_schmidt(Vektoren4,product=v_discr.products['l2'],offset=0,check=True)
 
 Vektorenk.append(POD[0])
-RB=gram_schmidt(Vektorenk,product=v_discr.products['l2'],offset=0,check=True)
+RB[4]=gram_schmidt(Vektorenk,product=v_discr.products['l2'],offset=0,check=True)
 
 V=None
 
-FT=np.ones((1,12))
-T=np.ones((1,12))
-with open('Tabelle POD Dirich Loes Fehler 20000 Nr.0 snapshots neu.csv','w') as csvfile:
+FT=np.ones((5,16))
+T=np.ones((5,16))
+with open('Tabelle POD Dirich Loes Fehler 20 Nr.0 snapshots neu.csv','w') as csvfile:
     writer=csv.writer(csvfile)
-    writer.writerow([' ','m','peak'])
+    writer.writerow([' ','m','p=0.1','p=0.01','p=0.001','p=0.001','peak'])
 
-for i in range(1):
-    for j in range(12):
+for j in range(16):
+    for i in range(5):
         print('i={}, m={}'.format(i,j+1))
         tic=time.time()
-        redsol,x_discr = fp_system(m=j+1,basis_type='RB',basis_pl_discr=(NumpyVectorArray(RB.data[0:j+1,:]),v_discr))
+        redsol,x_discr = fp_system(m=j+1,basis_type='RB',basis_pl_discr=(NumpyVectorArray(RB[i].data[0:j+1,:]),v_discr))
         FT[i,j]=fperror(redsol,FPLoes=FPLoes)
+        print('Error is {}'.format(FT[i,j]))
         T[i,j]=time.time()-tic
 
-        with open('Tabelle POD Dirich Loes Fehler 20000 Nr.0 snapshots neu.csv','a') as csvfile:
-            writer=csv.writer(csvfile)
-
-            writer.writerow(['Error',j+1,FT[0,j]])
-            writer.writerow(['Time',j+1,T[0,j]])
+    with open('Tabelle POD Dirich Loes Fehler 20 Nr.0 snapshots neu.csv','a') as csvfile:
+        writer=csv.writer(csvfile)
+        writer.writerow(['Error',j+1,FT[0,j],FT[1,j],FT[2,j],FT[3,j],FT[4,j]])
+        writer.writerow(['Time',j+1,T[0,j],T[1,j],T[2,j],T[3,j],T[4,j]])
 

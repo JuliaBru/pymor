@@ -54,7 +54,7 @@ def dg(mu1,mu2):
     d+= (1./6.3*(mu1['dxP'][0,0]-mu2['dxP'][0,0]))**2
     d+= (1./5.*(mu1['dtP'][0,0]-mu2['dtP'][0,0]))**2
     d+= 0*(1./4.*(mu1['qtpoint']-mu2['qtpoint']))**2
-    d+= (1./3.*(mu1['qxpoint']-mu2['qxpoint']))**2
+    d+= (1./2.*(mu1['qxpoint']-mu2['qxpoint']))**2
     d+= (mu1['dirich'][0]-mu2['dirich'][0])**2
     d+= (mu1['dirich'][1]-mu2['dirich'][1])**2
     return np.sqrt(d)

@@ -21,7 +21,7 @@ from pymor.la import NumpyVectorArray
 class FPProblem(InstationaryAdvectionProblem, Unpicklable):
     '''One-dimensional Fokker-Planck problem.
 
-    The problem is to solve ::
+    The problem is to solve :
 
         ∂_t p(x, t)  +  A* ∂_x p(x, t)) = - (sigma(x,t) I + 1/2 T(x,t) S) p(x,t) + q(x,t)
                                 p(x, 0) = p_0(x)
@@ -34,15 +34,20 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
         Dimension m of the system
     problem
         Name of the problem to solve
-    CFLtype
+    basis_type
 
     '''
 
     def __init__(self, sysdim, problem, basis_type='Leg', basis_pl_discr=None):
 
 
+        assert basis_type in ('Leg','RB')
+        if basis_type == 'Leg':
+            assert problem in ('2Beams','2Pulses','SourceBeam', 'SourceBeamNeu','RectIC')
+        else:
+            assert problem == 'SourceBeam'
+            assert basis_pl_discr is not None
 
-        assert problem in ('2Beams','2Pulses','SourceBeam', 'SourceBeamNeu','RectIC')
 
         def basis_generation(type):
             if basis_pl_discr is not None:

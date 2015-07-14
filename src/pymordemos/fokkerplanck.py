@@ -14,7 +14,6 @@ import csv
 import time
 from functools import partial
 import numpy as np
-from docopt import docopt
 import pymor.core as core
 import pickle
 from pymor.la import NumpyVectorArray
@@ -27,12 +26,14 @@ from datetime import datetime as date
 
 
 def fp_system(m, problem_name='SourceBeam', n_grid=500, basis_type='Leg',
-              num_flux='godunov_upwind', basis_pl_discr=None, save_pickled=False, save_csv=False):
+              num_flux='godunov_upwind', basis_pl_discr=None, save_pickled=False, save_csv=False, CFL_type='Auto',CFL=None):
 
     #assert problem in ('SourceBeam')
     assert num_flux in ('godunov_upwind')
     assert basis_type in ('Leg', 'RB')
     assert (basis_type == 'Leg' and basis_pl_discr == None) or (basis_type == 'RB' and basis_pl_discr is not None)
+    assert CFL_type in ('Auto', 'Manual')
+    assert (CFL_type == 'Auto' and CFL == None) or (CFL_type == 'Manual' and CFL is not None)
 
     #print('Setup Problem ...')
     domain_discretizer = partial(discretize_domain_default, grid_type=OnedGrid)
@@ -50,16 +51,14 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, basis_type='Leg',
     mu = problem.basis_dict
     mu.update({'m': m})
 
-    sys.stdout.flush()
+    #sys.stdout.flush()
     tic = time.time()
 
 
 
-
-    Lambda,W =np.linalg.eig(problem.flux_matrix)
-    CFL=min(1./(2.*np.max(np.abs(Lambda))),5.)
-
-
+    if CFL_type =='Auto':
+        Lambda,W =np.linalg.eig(problem.flux_matrix)
+        CFL=min(1./(2.*np.max(np.abs(Lambda))),5.)
 
     while True:
         try:
@@ -70,6 +69,8 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, basis_type='Leg',
             U, tvec = discretization.solve(mu)
             break
         except ValueError:
+            if CFL_type == 'Manual':
+                raise ValueError('Manual CFL set to {} is too large. Try again with smaller CFL.'.format(CFL))
             CFL *= 0.75
             print('neue CFL={}'.format(CFL))
 
