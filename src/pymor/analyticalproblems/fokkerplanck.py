@@ -3,6 +3,9 @@
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
+
+
+
 from __future__ import absolute_import, division, print_function
 import numpy as np
 
@@ -14,9 +17,6 @@ from pymor.functions import GenericFunction
 from pymor.parameters.spaces import CubicParameterSpace
 from pymor.analyticalproblems import Legendre
 from pymor.la import NumpyVectorArray
-
-
-
 
 class FPProblem(InstationaryAdvectionProblem, Unpicklable):
     '''One-dimensional Fokker-Planck problem.
@@ -239,9 +239,6 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
         basis_dict=basis_generation(basis_type)
         flux_matrix=basis_dict['MinvD']
-
-
-
 
 
 

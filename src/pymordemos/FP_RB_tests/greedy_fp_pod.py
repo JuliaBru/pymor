@@ -87,41 +87,26 @@ def fperror(V,FPLoes):
 
 
 
-
-MaxOrdn=2
-imax=1
-sample=5
-
-
-
-
-
-
-
-def greedy_fp(mmax,imax,sample,test_grid,seed=None):
+def greedy_fp_pod(mmax,imax,sample,test_grid,seed=None):
 
     np.random.seed(seed)
 
-    StartB=dict.fromkeys(range(MaxOrdn))
+    StartB=dict.fromkeys(range(mmax))
     StartB[0]=NumpyVectorArray.empty(501)
 
     problem=Fokkerplanck_V(problem='SourceBeam', delta=0, quadrature_count=(1,1),P_parameter_range=(0.01,1.2),
                            dxP_parameter_range=(-5.4,0.9),dtP_parameter_range=(0,5))
 
     n=250
-    #grid=discretization.visualizer.grid
     mu_discr, _ = discretize_elliptic_cg_plus(problem, diameter=1 / n)
-    args = docopt(__doc__)
 
-
-    FPLoes=np.zeros((1000,500))
-
-    with open('fploes.csv', 'rb') as csvfile:
+    FDRef=np.zeros((1000,500))
+    with open('FD_reference_solution.csv', 'rb') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         i=0
         for row in reader:
             for j in range(500):
-                FPLoes[i,j]=float(row[j])
+                FDRef[i,j]=float(row[j])
             i+=1
 
     B=NumpyVectorArray.empty(mu_discr.dim_solution,reserve=imax*sample*mmax)
@@ -131,9 +116,6 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
     relerror=dict.fromkeys(range(mmax))
     FehlerGes=np.zeros(mmax)
 
-
-
-
     print('Berechnung erste Basisvektoren')
 
     snapshot_ind=0
@@ -142,8 +124,6 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
         B.append(snapshot)
         mudict[snapshot_ind]=mu
         snapshot_ind+=1
-
-
 
     for m_ind in range(mmax):
         m=m_ind+1
@@ -155,12 +135,11 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
             Basis.append(NumpyVectorArray(B.data[ind,:]))
             Basis=gram_schmidt(Basis,mu_discr.products['l2'])
 
-
             print('m_ind={}, Fehler bisherige, ind={}'.format(m_ind,ind))
             V,fp_discr=fp_system(m=m,basis_type='RB',n_grid=test_grid,basis_pl_discr=(Basis,mu_discr))
 
 
-            relerror[m_ind][ind]=fperror(V,FPLoes)
+            relerror[m_ind][ind]=fperror(V,FDRef)
 
 
         snapshot_min_ind=np.ma.argmin(relerror[m_ind])
@@ -182,6 +161,7 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
 
                 while True:
                     if i >= 1000:
+                        #if necessary, diminish parameter space for random search
                         ranges_old=para_space.ranges
                         ranges_new= {'P': (float(ranges_old['P'][0] + (mudict[snapshot_min_ind]['P'][0] - ranges_old['P'][0])*xi),
                                                 float(ranges_old['P'][1] - (ranges_old['P'][1] - mudict[snapshot_min_ind]['P'])*xi)),
@@ -204,7 +184,6 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
                         print('new parameter range={}'.format(ranges_new))
                         i=0
 
-
                     for mu in para_space.sample_randomly(1):
                         for test_ind in range(s_now):
                             mudiff[test_ind]=dg(mudict[test_ind],mu)
@@ -225,19 +204,15 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
                 Basis.append(snapshot)
                 Basis=gram_schmidt(Basis,mu_discr.products['l2'])
 
-
                 print('m_ind={}, Fehler neue, i_ind={}, ind={}'.format(m_ind,i_ind,ind))
                 V,fp_discr=fp_system(m=m,basis_type='RB',n_grid=test_grid,basis_pl_discr=(Basis,mu_discr))
 
-                relerror[m_ind][snapshot_ind-1]=fperror(V,FPLoes)
-                args['--CFL']=0.65
+                relerror[m_ind][snapshot_ind-1]=fperror(V,FDRef)
+
             snapshot_min_ind=np.ma.argmin(relerror)
-
-
 
         #POD
         StartB[m_ind+1],_=pod(B,modes=m_ind+1,product=mu_discr.products['l2'])
-
 
     if True:
         index_tuple=[]
@@ -248,7 +223,6 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
         B_beste=NumpyVectorArray(B.data[index_tuple])
     if False:
         B_beste=NumpyVectorArray(B.data)
-
 
     FinalPOD,SV =pod(B_beste,modes=None,product=mu_discr.products['l2'])
     PODerrors=np.zeros(20)
@@ -287,3 +261,4 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None):
 
 
     #print('Echter Fehler: {}'.format(fperror(Vend,FPLoes)))
+    return

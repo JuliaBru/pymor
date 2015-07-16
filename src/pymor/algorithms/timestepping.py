@@ -20,7 +20,7 @@ and :class:`ImplicitEulerTimeStepper` encapsulate :func:`explicit_euler` and
 
 from __future__ import absolute_import, division, print_function
 
-from pymor.core import ImmutableInterface, abstractmethod
+from pymor.core import ImmutableInterface, abstractmethod, getLogger
 from pymor.la import VectorArrayInterface
 from pymor.la.numpyvectorarray import NumpyVectorArray
 from pymor.operators import OperatorInterface
@@ -247,6 +247,7 @@ def explicit_euler(A, F, U0, t0, t1, nt, mu=None, num_values=None):
     return R
 
 def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
+    logger = getLogger('pymor.algorithms.timestepping.explicit_euler_ndim')
     assert isinstance(A, OperatorInterface)
 
     assert A.dim_source*sysdim == A.dim_range
@@ -304,7 +305,7 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
 
     if F is None:
-        for n in xrange(nt):
+        for n in xrange(nt+1):
             t += dt
             if n/nt > proz:
                 print(t)
@@ -312,21 +313,21 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
             #print(t)
             mu['_t'] = t
             Ua=A.apply(U.copy(),mu=mu)
-            if n * (num_values / nt) > len(R[0]):
+            if n * (num_values / nt) >= len(R[0]):
                 tvec=np.append(tvec,t)
             for j in range(sysdim):
                 U[j].axpy(dt,-Ua[j])
-            #    if n * (num_values / nt) > len(R[j]):
+                if n * (num_values / nt) >= len(R[j]):
 #                if j==0:
-                R[j].append(U[j])
+                    R[j].append(U[j])
                 #R[j][n,:]=U[j].data
 
 
     else:
-        for n in xrange(nt):
+        for n in xrange(nt+1):
             t += dt
             if n/nt > proz:
-                print(t)
+                logger.info('{} %'.format(proz*100))
                 proz+=0.1
             #print(t)
             mu['_t'] = t
@@ -337,18 +338,16 @@ def explicit_euler_ndim(sysdim,A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
             Ua=A.apply(U.copy(),mu=mu)
 
-            if n * (num_values / nt) > len(R[0]):
-                tvec=np.append(tvec,t)
+
             for j in range(sysdim):
                 U[j].axpy(dt,F_ass[j] -Ua[j])
                 if np.max(U[j].data) > 10000:
                     raise ValueError
-                if n * (num_values / nt) > len(R[j]):
+            if (n+1) * (num_values / nt) >= len(R[0]):
+                tvec=np.append(tvec,t)
+                for j in range(sysdim):
                     R[j].append(U[j])
-               # R[j][n,:]=U[j].data
 
-#    for j in range(sysdim):
-#        R[j]=NumpyVectorArray(R[j])
 
     return R,tvec
 

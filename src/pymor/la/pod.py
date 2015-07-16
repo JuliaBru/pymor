@@ -119,7 +119,7 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
             err = np.max(np.abs(product.apply2(POD, POD, pairwise=False) - np.eye(len(POD))))
             raise AccuracyError('result not orthogonal (max err={})'.format(err))
 
-    return POD, EVALS
+    return POD
 
 
 

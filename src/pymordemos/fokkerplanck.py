@@ -9,7 +9,7 @@
 
 '''
 
-import sys
+
 import csv
 import time
 from functools import partial
@@ -22,6 +22,7 @@ from pymor.domaindiscretizers import discretize_domain_default
 from pymor.analyticalproblems.fokkerplanck import FPProblem
 from pymor.grids import OnedGrid
 from datetime import datetime as date
+from pymor.core import getLogger
 
 
 
@@ -30,20 +31,20 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind
               CFL_type='Auto',CFL=None,
               save_pickled=False, save_csv=False, save_time=False):
 
-
+    logger = getLogger('pymordemos.fokkerplanck.fp_system')
     assert num_flux in ('godunov_upwind')
     assert basis_type in ('Leg', 'RB')
     assert (basis_type == 'Leg' and basis_pl_discr == None) or (basis_type == 'RB' and basis_pl_discr is not None)
     assert CFL_type in ('Auto', 'Manual')
     assert (CFL_type == 'Auto' and CFL == None) or (CFL_type == 'Manual' and CFL is not None)
 
-    print('Setup Problem ...')
+    logger.info('Setup Problem ...')
     domain_discretizer = partial(discretize_domain_default, grid_type=OnedGrid)
     problem = FPProblem(sysdim=m, problem=problem_name,
                         basis_type=basis_type, basis_pl_discr=basis_pl_discr)
 
 
-    print('Discretize ...')
+    logger.info('Discretize ...')
     discretizer = discretize_nonlinear_instationary_advection_fv_ndim
     xwidth = problem.domain.domain[1] - problem.domain.domain[0]
 
@@ -53,7 +54,7 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind
     mu = problem.basis_dict
     mu.update({'m': m})
 
-    #sys.stdout.flush()
+
     tic = time.time()
 
 
@@ -62,8 +63,8 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind
         Lambda,W =np.linalg.eig(problem.flux_matrix)
         CFL=min(1./(2*np.max(np.abs(Lambda))),5.)
 
-    print('Solve ...')
-    print('CFL is {}'.format(CFL))
+    logger.info('Solve ...')
+    logger.info('CFL is {}'.format(CFL))
     while True:
         try:
             discretization, data = discretizer(problem, m, diameter=float(xwidth) / n_grid,
@@ -76,14 +77,14 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind
             if CFL_type == 'Manual':
                 raise ValueError('Manual CFL set to {} is too large. Try again with smaller CFL.'.format(CFL))
             CFL *= 0.75
-            print('CFL was automatically decreased. New CFL is {}'.format(CFL))
+            logger.info('CFL was automatically decreased. New CFL is {}'.format(CFL))
 
     V = U[0] * 0
 
     for j in range(m):
         V.axpy(mu['basis_werte'][0, j], U[j])
 
-    print('Solving took {}s'.format(time.time() - tic))
+    logger.info('Solving took {}s'.format(time.time() - tic))
 
 
 

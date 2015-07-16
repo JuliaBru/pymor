@@ -5,24 +5,24 @@ import csv
 import math
 
 
-LsgJulia=np.zeros((1000,500))
+LsgJulia=np.zeros((1000,50))
 
 with open('SourceBeam 15-07-14 13:31:13 Leg m=6.csv', 'rb') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     i=0
     for row in reader:
-        for j in range(500):
+        for j in range(50):
             LsgJulia[i,j]=float(row[j])
         i+=1
 
 
-LsgTobi=np.zeros((1000,500))
+LsgTobi=np.zeros((1000,50))
 
 with open('SourceBeam 15-07-14 13:03:30 Leg m=6.csv', 'rb') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     i=0
     for row in reader:
-        for j in range(500):
+        for j in range(50):
             LsgTobi[i,j]=float(row[j])
         i+=1
 

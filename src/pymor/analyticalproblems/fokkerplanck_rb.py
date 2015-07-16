@@ -2,7 +2,7 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-__author__ = 'j_brun16'
+
 
 #from __future__ import absolute_import, division, print_function
 
@@ -19,25 +19,23 @@ import numpy as np
 
 
 class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
-    '''Analytical description of the 1D velocity part of the Fokkerplanck equation.
+    '''Analytical description of the 1D transverse PDE of the Fokkerplanck equation.
 
-    This problem is to solve the elliptic equation ::
+    This problem is to solve the elliptic equation :
 
      - a(μ)  d_v (1-v²) d_v phi(v) + b(μ) v phi(v) + c(mu) phi(v) = Q(v,μ)
 
-    on the domain [-1-delta , 1 + delta] with Dirichlet zero boundary values.
+    on the domain [-1 , 1] with Dirichlet boundary values.
     The parameter functionals are evaluated with a quadrature formula dependent on problem-specific functions and parameters
 
 
 
-    The Problem is implemented as an |EllipticProblem|
+    The Problem is implemented as an |EllipticPlusProblem|
 
     Parameters
     ----------
-    problem
-        The name of the problem to solve
-    delta
-        Computational domain will be [-1-delta, 1+delta]
+    test_case
+        The name of the test case to solve
     quadrature_count
         A tuple (nx,nt). Number of quadrature points in x and t directions
     P_parameter_range
@@ -50,75 +48,32 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
         The |Function| f(x, μ).
     '''
 
-    def __init__(self, delta=0.5 , problem='SourceBeam', quadrature_count=(1,1), P_parameter_range=(0.2, 2), dxP_parameter_range=(0, 10),
+    def __init__(self, test_case='SourceBeam', quadrature_count=(1,1), P_parameter_range=(0.2, 2), dxP_parameter_range=(0, 10),
                  dtP_parameter_range=(0, 10)):
 
-        self.delta=delta
-        assert delta >= 0
-        self.domain = LineDomain((-1-delta,1+delta))
+        self.domain = LineDomain((-1,1))
 
-        if problem == 'SourceBeam':
+        if test_case == 'SourceBeam':
             xdomain=(0.,3.)
             tdomain=(0.,4.)
 
             def IC(x,t):
                 return 10.**(-4)
+
             def BCl(x,t):
                 return 1
+
             def BCr(x,t):
                 return 10**(-4)
+
             def Qfunc(x,t):
                 return (x >= 1)*(x <= 1.5)
+
             def Tfunc(x,t):
                 return 2.*(x > 1)*(x <=2) + 10.*(x > 2)
+
             def absorbfunc(x,t):
                 return 1.*(x<=2)
-
-        if problem == 'SourceBeamNeu':
-            xdomain=(0.,3.)
-            tdomain=(0.,4.)
-
-            def IC(x,t):
-                return 10.**(-4)
-            def BCr(x,t):
-                return 1
-            def BCl(x,t):
-                return 10**(-4)
-            def Qfunc(x,t):
-                return (x >= 1)*(x <= 1.5)
-            def Tfunc(x,t):
-                #return (2.*(x > 1)*(x <=2) + 10.*(x > 2)  )
-                return x
-            def absorbfunc(x,t):
-                #return 1.*(x <= 2)
-                return 0.
-
-        if problem == 'RectIC':
-
-            xdomain = (0.,7.)
-            tdomain=(0.,8.)
-
-            def IC(x,t):
-                return 10.**(-4)*(x<3)+ 10.**(-4)*(x>4) + 10*(x>=3)*(x<=4)
-
-            def BCfuncl(t):
-                return 10**(-4)
-            def BCfuncr(t):
-                return 10**(-4)
-            def BCdeltal(t):
-                return 0
-            def BCdeltar(t):
-                return 0
-
-
-            def Qfunc(x,t):
-                return 0
-            def Tfunc(x,t):
-                return 1.
-
-            def absorbfunc(x,t):
-                return 0
-
 
         def xt_quadrature(f,xdomain,tdomain):
             xlength=xdomain[1]-xdomain[0]
@@ -138,7 +93,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
 
 
 
-        if problem == 'SourceBeam':
+        if test_case == 'SourceBeam':
             parameter_range={'P': P_parameter_range,
                              'dxP': dxP_parameter_range,
                              'dtP': dtP_parameter_range,
@@ -188,7 +143,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     Tmatr[i,j]=Tfunc(xpoints[i],tpoints[j])
             F=np.multiply(np.multiply(P,P),Tmatr)
             ret=xt_quadrature(F,xdomain,tdomain)
-            print('param_a={}'.format(ret))
+            #print('param_a={}'.format(ret))
             return ret
 
 
@@ -211,7 +166,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
             dxP=mu['dxP']
             F=np.multiply(dxP,P)
             ret=xt_quadrature(F,xdomain,tdomain)
-            print('b={}'.format(ret))
+            #print('b={}'.format(ret))
             return ret
 
         def param_c(mu):
@@ -226,7 +181,7 @@ class Fokkerplanck_V(EllipticPlusProblem, Unpicklable):
                     sigmamatr[i,j]=absorbfunc(xpoints[i],tpoints[j])
             F=np.multiply(dtP,P)+np.multiply(np.multiply(P,P),sigmamatr)
             ret=xt_quadrature(F,xdomain,tdomain)
-            print('c={}'.format(ret))
+            #print('c={}'.format(ret))
             return ret
 
 
