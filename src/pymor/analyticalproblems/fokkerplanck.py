@@ -38,14 +38,14 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
     '''
 
-    def __init__(self, sysdim, problem, basis_type='Leg', basis_pl_discr=None):
+    def __init__(self, sysdim, test_case, basis_type='Leg', basis_pl_discr=None):
 
 
         assert basis_type in ('Leg','RB')
         if basis_type == 'Leg':
-            assert problem in ('2Beams','2Pulses','SourceBeam', 'SourceBeamNeu','RectIC')
+            assert test_case in ('2Beams','2Pulses','SourceBeam', 'SourceBeamNeu','RectIC')
         else:
-            assert problem == 'SourceBeam'
+            assert test_case == 'SourceBeam'
             assert basis_pl_discr is not None
 
 
@@ -87,7 +87,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
 
-        if problem == '2Pulses':
+        if test_case == '2Pulses':
 
             domain = LineDomain([0., 7.])
             stoptime=7.
@@ -113,7 +113,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
 
-        if problem == '2Beams':
+        if test_case == '2Beams':
 
             domain = LineDomain([-0.5, 0.5])
             stoptime=2.
@@ -140,7 +140,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
 
-        if problem == 'SourceBeam':
+        if test_case == 'SourceBeam':
 
             domain = LineDomain([0.,3.])
             stoptime=4.
@@ -166,7 +166,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
 
 
 
-        if problem == 'RectIC':
+        if test_case == 'RectIC':
 
             domain = LineDomain([0.,7.])
             stoptime=8

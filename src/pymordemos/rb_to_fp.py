@@ -134,7 +134,7 @@ def proximity_func(mu1,mu2):
     return np.sqrt(d)
 
 
-def greedy_fp(mmax,imax,sample,test_grid,seed=None,start_basis=None,ompute_real_error=False):
+def greedy_fp(mmax,imax,sample,test_grid,seed=None,start_basis=None):
 
     logger = getLogger('pymordemos.rb_to_fp.greedy_fp')
 
@@ -149,8 +149,6 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None,start_basis=None,ompute_real_
 
     problem=Fokkerplanck_V(test_case='SourceBeam', quadrature_count=(1,1),P_parameter_range=(0.01,1.2),
                            dxP_parameter_range=(-5.4,0.9),dtP_parameter_range=(0,5))
-
-    Beste=dict.fromkeys(range(mmax))
 
     n=250
     discretization, _ = discretize_elliptic_cg_plus(problem, diameter=1 / n)
@@ -221,10 +219,6 @@ def greedy_fp(mmax,imax,sample,test_grid,seed=None,start_basis=None,ompute_real_
 
         logger.info('Error for best solution at iteration m_ind={} : {}'.format(m_ind,relerror))
 
-        if compute_real_error == True:
-            Vend,discr=fp_system(m=m,basis_type='RB',basis_pl_discr=(Basis[snapshot_min_ind],discretization))
-            real_error=fperror(Vend,FDRef)
-            print('Real error for best snapshot from parameter value {} is {}'.format(mudict[snapshot_min_ind],real_error))
 
     return StartB[mmax],discretization
 

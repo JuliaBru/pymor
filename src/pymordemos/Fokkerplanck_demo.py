@@ -6,9 +6,9 @@
 '''Fokkerplanck demo.
 
 Usage:
-  Fokkerplanck_demo.py [--grid=NI] [--help]
-                  [--plot_solution] [--compute_error] [--save_pickled] [--save_csv] [--save_time]
-                  MODEL_TYPE_NO MODEL_ORDER
+  Fokkerplanck_demo.py [--grid=NI] [--help] [--plot_solution]
+  [--compute_error] [--save_pickled] [--save_csv] [--save_time]
+  MODEL_TYPE_NO MODEL_ORDER
 
 
 Arguments:
@@ -57,6 +57,7 @@ getLogger('pymordemos.rb_to_fp').setLevel('INFO')
 
 
 def fokkerplanck_demo(args):
+    assert int(args['MODEL_TYPE_NO']) in (1,2,3,4,5,6)
     type_no = int(args['MODEL_TYPE_NO'])
     m = int(args['MODEL_ORDER'])
     n_grid = int(args['--grid'])
@@ -75,7 +76,7 @@ def fokkerplanck_demo(args):
         basis_type='Leg'
         basis_pl_discr=None
 
-        print('Solve {} test case with Legendre moments\n'
+        print('\nSolve {} test case with Legendre moments\n'
               'Model order is {}'.format(test_case,m))
 
     #---------------FP-RB solutions ----------------------------
@@ -89,13 +90,17 @@ def fokkerplanck_demo(args):
     if type_no == 2:
 
         # Import file containing the precomputed snapshots (for example from MATLAB solution)
+        #Specify file name and size:
+        file_name='MATLAB_snapshots.csv'
+        grid_size=200
+        number_of_snapshots=5000
 
-        snapshots=np.zeros((5000,200))
-        with open('MATLAB_snapshots.csv', 'rb') as csvfile:
+        snapshots=np.zeros((number_of_snapshots,grid_size))
+        with open(file_name, 'rb') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             i=0
             for row in reader:
-                for j in range(200):
+                for j in range(grid_size):
                     snapshots[i,j]=float(row[j])
                 i+=1
 
@@ -171,7 +176,7 @@ def fokkerplanck_demo(args):
     getLogger('pymor.algorithms').setLevel('INFO')
     getLogger('pymordemos').setLevel('INFO')
 
-    fpsol,x_discr=fp_system(m=m,basis_type=basis_type,basis_pl_discr=basis_pl_discr, problem_name=test_case, n_grid=n_grid,
+    fpsol,x_discr=fp_system(m=m,basis_type=basis_type,basis_pl_discr=basis_pl_discr, test_case=test_case, n_grid=n_grid,
                             save_csv=args['--save_csv'],save_time=args['--save_time'], save_pickled=args['--save_pickled'], CFL_type='Auto')
 
     #-------------------Error estimation------------------------
@@ -179,12 +184,16 @@ def fokkerplanck_demo(args):
     if args['--compute_error']:
 
         #Import reference solution
-        FDRef=np.zeros((1000,500))
-        with open('FD_reference_solution.csv', 'rb') as csvfile:
+        #Specify name and size of reference solution
+        FD_file_name='FD_reference_solution.csv'
+        FD_file_size=(1000,500)
+
+        FDRef=np.zeros(FD_file_size)
+        with open(FD_file_name, 'rb') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             i=0
             for row in reader:
-                for j in range(500):
+                for j in range(FD_file_size[1]):
                     FDRef[i,j]=float(row[j])
                 i+=1
         print('\nError of reduced solution is {}'.format(fperror(fpsol,FDRef)))

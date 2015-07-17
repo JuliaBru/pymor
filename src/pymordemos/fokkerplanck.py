@@ -26,13 +26,13 @@ from pymor.core import getLogger
 
 
 
-def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind',
+def fp_system(m, test_case='SourceBeam', n_grid=500,
               basis_type='Leg',basis_pl_discr=None,
               CFL_type='Auto',CFL=None,
               save_pickled=False, save_csv=False, save_time=False):
 
     logger = getLogger('pymordemos.fokkerplanck.fp_system')
-    assert num_flux in ('godunov_upwind')
+
     assert basis_type in ('Leg', 'RB')
     assert (basis_type == 'Leg' and basis_pl_discr == None) or (basis_type == 'RB' and basis_pl_discr is not None)
     assert CFL_type in ('Auto', 'Manual')
@@ -40,7 +40,7 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind
 
     logger.info('Setup Problem ...')
     domain_discretizer = partial(discretize_domain_default, grid_type=OnedGrid)
-    problem = FPProblem(sysdim=m, problem=problem_name,
+    problem = FPProblem(sysdim=m, test_case=test_case,
                         basis_type=basis_type, basis_pl_discr=basis_pl_discr)
 
 
@@ -68,7 +68,7 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind
     while True:
         try:
             discretization, data = discretizer(problem, m, diameter=float(xwidth) / n_grid,
-                                               num_flux=num_flux,
+                                               num_flux='godunov_upwind',
                                                CFL=CFL, domain_discretizer=domain_discretizer, num_values=1000)
 
             U, tvec = discretization.solve(mu)
@@ -90,20 +90,20 @@ def fp_system(m, problem_name='SourceBeam', n_grid=500, num_flux='godunov_upwind
 
     if save_csv == True:
         d=date.now()
-        with open('{} {} {} m={}.csv'.format(problem_name,d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m),'w') as csvfile:
+        with open('{} {} {} m={}.csv'.format(test_case,d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m),'w') as csvfile:
             writer=csv.writer(csvfile)
             for j in range(np.shape(V.data)[0]):
                 writer.writerow(V.data[j,:])
 
     if save_time == True:
         d=date.now()
-        with open('Time Steps {} {} {} m={}.csv'.format(problem_name,d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m),'w') as csvfile:
+        with open('Time Steps {} {} {} m={}.csv'.format(test_case,d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m),'w') as csvfile:
             writer=csv.writer(csvfile)
             writer.writerow(tvec)
 
     if save_pickled == True:
         d=date.now()
-        pickle.dump((V,tvec) ,open( '{} {} {} m={}.p'.format(problem_name, d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m), "wb" ))
+        pickle.dump((V,tvec) ,open( '{} {} {} m={}.p'.format(test_case, d.strftime("%y-%m-%d %H:%M:%S"),basis_type ,m), "wb" ))
 
 
     return V, discretization
