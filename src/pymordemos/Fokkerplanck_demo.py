@@ -45,164 +45,161 @@ __author__ = 'j_brun16'
 
 
 from docopt import docopt
-from pymor.core import getLogger
 import numpy as np
 import csv
+from pymor.core import getLogger
 from pymor.la import NumpyVectorArray
 from pymordemos.fokkerplanck import fp_system
-from pymordemos.rb_to_fp import fp_random_snapshots,pod_from_snapshots,basis_plus_boundary,greedy_fp,fperror,greedy_fp_pod
+from pymordemos.rb_to_fp import fp_random_snapshots, pod_from_snapshots, basis_plus_boundary, greedy_fp, fperror, greedy_fp_pod
 
 getLogger('pymor.tools').setLevel('ERROR')
 getLogger('pymordemos.rb_to_fp').setLevel('INFO')
 
 
 def fokkerplanck_demo(args):
-    assert int(args['MODEL_TYPE_NO']) in (1,2,3,4,5,6)
+    assert int(args['MODEL_TYPE_NO']) in (1, 2, 3, 4, 5, 6)
     type_no = int(args['MODEL_TYPE_NO'])
     m = int(args['MODEL_ORDER'])
     n_grid = int(args['--grid'])
 
-    #---------------Legendre-----------------------------------
-    if type_no==1:
+    # ---------------Legendre-----------------------------------
+    if type_no == 1:
 
         # Legendre solution can be computed for different test cases:
-        #---Choose test case---
+        # ---Choose test case---
 
-        #test_case='2Beams'
-        #test_case='2Pulses'
-        test_case='SourceBeam'
-        #test_case='RectIC'
+        # test_case='2Beams'
+        # test_case='2Pulses'
+        test_case = 'SourceBeam'
+        # test_case='RectIC'
 
-        basis_type='Leg'
-        basis_pl_discr=None
+        basis_type = 'Leg'
+        basis_pl_discr = None
 
         print('\nSolve {} test case with Legendre moments\n'
-              'Model order is {}'.format(test_case,m))
+              'Model order is {}'.format(test_case, m))
 
-    #---------------FP-RB solutions ----------------------------
+    # ---------------FP-RB solutions ----------------------------
 
     else:
-        basis_type='RB'
-        test_case='SourceBeam'
+        basis_type = 'RB'
+        test_case = 'SourceBeam'
 
-    #---------------Basis generation----------------------------
+    # ---------------Basis generation----------------------------
 
     if type_no == 2:
 
         # Import file containing the precomputed snapshots (for example from MATLAB solution)
-        #Specify file name and size:
-        file_name='MATLAB_snapshots.csv'
-        grid_size=200
-        number_of_snapshots=5000
+        # Specify file name and size:
+        file_name = 'MATLAB_snapshots.csv'
+        grid_size = 200
+        number_of_snapshots = 5000
 
-        snapshots=np.zeros((number_of_snapshots,grid_size))
+        snapshots = np.zeros((number_of_snapshots, grid_size))
         with open(file_name, 'rb') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
-            i=0
+            i = 0
             for row in reader:
                 for j in range(grid_size):
-                    snapshots[i,j]=float(row[j])
-                i+=1
+                    snapshots[i, j] = float(row[j])
+                i += 1
 
         print('\nCompute POD basis from MATLAB snapshots')
-        basis_pl_discr=pod_from_snapshots(snapshots=NumpyVectorArray(snapshots),basis_size=m)
+        basis_pl_discr = pod_from_snapshots(snapshots=NumpyVectorArray(snapshots), basis_size=m)
 
         print('\nSolve {} test case with POD basis from MATLAB snapshots\n'
-              'Model order is {}'.format(test_case,m))
+              'Model order is {}'.format(test_case, m))
 
-    if type_no == 3 or type_no ==4:
+    if type_no == 3 or type_no == 4:
 
-        #Specify number of computed snapshots
-        n_train=100
+        # Specify number of computed snapshots
+        n_train = 100
 
         print('\nCompute {} Random Snapshots'.format(n_train))
-        snapshots,v_discr=fp_random_snapshots(n_train)
+        snapshots, v_discr = fp_random_snapshots(n_train)
 
         print('\nCompute POD basis')
-        basis_pl_discr=pod_from_snapshots(snapshots=snapshots,discretization=v_discr,basis_size=m)
+        basis_pl_discr = pod_from_snapshots(snapshots=snapshots, discretization=v_discr, basis_size=m)
 
         if type_no == 3:
             print('\nSolve {} test case with POD basis from {} random snapshots \n'
-                  'Model order is {}'.format(test_case,n_train,m))
+                  'Model order is {}'.format(test_case, n_train, m))
 
     if type_no == 4:
 
-        #Extend POD basis with boundary function.
+        # Extend POD basis with boundary function.
 
-        #POD basis:
-        basis,v_discr=basis_pl_discr
+        # POD basis:
+        basis, v_discr = basis_pl_discr
 
-        #Choose boundary approximation type:
-        #boundary_type='p=0.1'
-        #boundary_type='p=0.01'
-        #boundary_type='p=0.001'
-        #boundary_type='p=0.0001'
-        boundary_type='peak'
+        # Choose boundary approximation type:
+        # boundary_type='p=0.1'
+        # boundary_type='p=0.01'
+        # boundary_type='p=0.001'
+        # boundary_type='p=0.0001'
+        boundary_type = 'peak'
 
         print('\nExtend basis with boundary basis function')
-        basis_pl_discr=basis_plus_boundary(basis,boundary_type,v_discr)
+        basis_pl_discr = basis_plus_boundary(basis, boundary_type, v_discr)
 
-        print('\nSolve {} test case with POD-Boundary basis from {} random snapshots with delta approximation {}.\n '
-              'Model order is {}'.format(test_case,n_train,boundary_type,m))
+        print('\nSolve {} test case with Boundary-POD basis from {} random snapshots with delta approximation {}.\n '
+              'Model order is {}'.format(test_case, n_train, boundary_type, m))
 
     if type_no == 5:
-        #Choose parameters for greedy algorithm:
-        imax=1
-        sample=2
-        test_grid=50
-        #mmax has to be chosen as model order m given as argument
+        # Choose parameters for Greedy algorithm:
+        i_refine = 1
+        sample = 2
+        test_grid = 50
+        # mmax has to be chosen as model order m given as argument
 
-        print('\nDo greedy algorithm for basis generation')
+        print('\nDo Greedy algorithm for basis generation')
         getLogger('pymordemos.rb_to_fp.greedy_fp').setLevel('INFO')
-        basis_pl_discr=greedy_fp(mmax=m,imax=imax,sample=sample,test_grid=test_grid,seed=1)
-        print('\nSolve {} test case with basis from greedy algorithm. Parameters: imax={}, test_grid={}.\n'
-              'Model order is {}'.format(test_case,imax,test_grid,m))
+        basis_pl_discr = greedy_fp(m_max=m, i_refine=i_refine, sample=sample, test_grid=test_grid, seed=1)
+        print('\nSolve {} test case with basis from Greedy algorithm. Parameters: i_refine={}, test_grid={}.\n'
+              'Model order is {}'.format(test_case, i_refine, test_grid, m))
 
     if type_no == 6:
-        #Choose parameters for greedy POD algorithm:
-        mmax=3
-        imax=1
-        sample=2
-        test_grid=50
+        # Choose parameters for Greedy-POD algorithm:
+        m_max = 3
+        i_refine = 1
+        sample = 2
+        test_grid = 50
 
-        print('\nDo greedy POD algorithm for basis generation')
+        print('\nDo Greedy-POD algorithm for basis generation')
         getLogger('pymordemos.rb_to_fp.greedy_fp_pod').setLevel('INFO')
-        basis_pl_discr=greedy_fp_pod(mmax=mmax,imax=imax,sample=sample,test_grid=test_grid,basis_out=m,seed=1)
-        print('\nSolve {} test case with basis from greedy POD algorithm. Parameters: mmax={}, imax={}, test_grid={}.\n'
-              'Model order is {}'.format(test_case,mmax,imax,test_grid,m))
+        basis_pl_discr = greedy_fp_pod(m_max=m_max, i_refine=i_refine, sample=sample, test_grid=test_grid, basis_out=m, seed=1)
+        print('\nSolve {} test case with basis from Greedy-POD algorithm. Parameters: m_max={}, i_refine={}, test_grid={}.\n'
+              'Model order is {}'.format(test_case, m_max, i_refine, test_grid, m))
 
-    #-------------------Compute Reduced Solution ---------------
+    # -------------------Compute Reduced Solution ---------------
 
     getLogger('pymor.algorithms').setLevel('INFO')
     getLogger('pymordemos').setLevel('INFO')
 
-    fpsol,x_discr=fp_system(m=m,basis_type=basis_type,basis_pl_discr=basis_pl_discr, test_case=test_case, n_grid=n_grid,
-                            save_csv=args['--save_csv'],save_time=args['--save_time'], save_pickled=args['--save_pickled'], CFL_type='Auto')
+    fpsol, x_discr = fp_system(m=m, basis_type=basis_type, basis_pl_discr=basis_pl_discr, test_case=test_case, n_grid=n_grid,
+                            save_csv=args['--save_csv'], save_time=args['--save_time'], save_pickled=args['--save_pickled'], CFL_type='Auto')
 
-    #-------------------Error estimation------------------------
+    # -------------------Error estimation------------------------
 
     if args['--compute_error']:
+        # Import reference solution
+        # Specify name and size of reference solution
+        FD_file_name = 'FD_reference_solution.csv'
+        FD_file_size = (1000, 500)
 
-        #Import reference solution
-        #Specify name and size of reference solution
-        FD_file_name='FD_reference_solution.csv'
-        FD_file_size=(1000,500)
-
-        FDRef=np.zeros(FD_file_size)
+        FDRef = np.zeros(FD_file_size)
         with open(FD_file_name, 'rb') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
-            i=0
+            i = 0
             for row in reader:
                 for j in range(FD_file_size[1]):
-                    FDRef[i,j]=float(row[j])
-                i+=1
-        print('\nError of reduced solution is {}'.format(fperror(fpsol,FDRef)))
+                    FDRef[i, j] = float(row[j])
+                i += 1
+        print('\nError of the reduced solution is {}'.format(fperror(fpsol, FDRef)))
 
-    #------------------Plot solution----------------------------
+    # ------------------Plot solution----------------------------
     if args['--plot_solution']:
         x_discr.visualize(fpsol)
-
-
 
 if __name__ == '__main__':
     # parse arguments
