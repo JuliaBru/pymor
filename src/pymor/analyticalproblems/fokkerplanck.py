@@ -3,20 +3,19 @@
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
-
+# Author: Julia Brunken
 
 
 from __future__ import absolute_import, division, print_function
 import numpy as np
-
-
 from pymor.analyticalproblems.advection import InstationaryAdvectionProblem
-from pymor.core import Unpicklable, inject_sid
+from pymor.core import Unpicklable
 from pymor.domaindescriptions import LineDomain
 from pymor.functions import GenericFunction
 from pymor.parameters.spaces import CubicParameterSpace
 from pymor.analyticalproblems import Legendre
 from pymor.la import NumpyVectorArray
+
 
 class FPProblem(InstationaryAdvectionProblem, Unpicklable):
     """One-dimensional Fokker-Planck problem.
@@ -39,9 +38,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
     basis_pl_discr
         Has to be provided if basis_type == 'RB', tuple of basis (NumpyVectorArray) and corresponding
         discretization object
-
     """
-
 
     def __init__(self, sysdim, test_case, basis_type='Leg', basis_pl_discr=None):
 
@@ -56,7 +53,7 @@ class FPProblem(InstationaryAdvectionProblem, Unpicklable):
             if basis_pl_discr is not None:
                 (basis, discr) = basis_pl_discr
                 assert basis._len == sysdim
-                grid=discr.visualizer.grid
+                grid = discr.visualizer.grid
             elif type == 'Leg':
                 discr = Legendre.basis_discr(1000, [-1, 1])
                 grid = discr.visualizer.grid

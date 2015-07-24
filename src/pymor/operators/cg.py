@@ -2,6 +2,8 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Extended by Julia Brunken (L2ProductP1WithoutBoundary, L2ProductP1Absorb, DiffusionOperatorP1WithoutBoundary)
 
 ''' This module provides some operators for continuous finite elements discretizations.'''
 
@@ -191,6 +193,7 @@ class L2ProductP1(NumpyMatrixBasedOperator):
 
         return NumpyMatrixOperator(A)
 
+
 class L2ProductP1WithoutBoundary(NumpyMatrixBasedOperator):
     '''|Operator| representing the L2-product between linear finite element functions.
 
@@ -221,6 +224,8 @@ class L2ProductP1WithoutBoundary(NumpyMatrixBasedOperator):
         `dirichlet_clear_columns` is `True`, the diagonal entries are set to one.
     name
         The name of the product.
+
+    Author: Julia Brunken (slightly changed version of L2ProductP1)
     '''
 
     sparse = True
@@ -255,8 +260,6 @@ class L2ProductP1WithoutBoundary(NumpyMatrixBasedOperator):
         else:
             raise NotImplementedError
 
-
-
         # evaluate the shape functions on the quadrature points
         SFQ = np.array(tuple(f(q) for f in SF))
 
@@ -270,7 +273,7 @@ class L2ProductP1WithoutBoundary(NumpyMatrixBasedOperator):
         SF_I0 = np.repeat(g.subentities(0, g.dim), g.dim + 1, axis=1).ravel()
         SF_I1 = np.tile(g.subentities(0, g.dim), [1, g.dim + 1]).ravel()
 
-        self.logger.info('Boundary treatment ...')
+        #self.logger.info('Boundary treatment ...')
         #if bi.has_dirichlet:
         #    if self.dirichlet_clear_rows:
         #        SF_INTS = np.where(bi.dirichlet_mask(g.dim)[SF_I0], 0, SF_INTS)
@@ -321,6 +324,8 @@ class L2ProductP1Absorb(NumpyMatrixBasedOperator):
         `dirichlet_clear_columns` is `True`, the diagonal entries are set to one.
     name
         The name of the product.
+
+    Author: Julia Brunken (Extended version of L2ProductP1WithoutBoundary)
     '''
 
     sparse = True
@@ -403,8 +408,6 @@ class L2ProductP1Absorb(NumpyMatrixBasedOperator):
         A = csc_matrix(A).copy()   # See DiffusionOperatorP1 for why copy() is necessary
 
         return NumpyMatrixOperator(A)
-
-
 
 
 class DiffusionOperatorP1(NumpyMatrixBasedOperator):
@@ -517,6 +520,8 @@ class DiffusionOperatorP1(NumpyMatrixBasedOperator):
 class DiffusionOperatorP1WithoutBoundary(NumpyMatrixBasedOperator):
     '''Diffusion |Operator| for linear finite elements.
 
+    No Boundary Treatment!!
+
     The operator is of the form ::
 
         (Lu)(x) = c ∇ ⋅ [ d(x) ∇ u(x) ]
@@ -543,6 +548,8 @@ class DiffusionOperatorP1WithoutBoundary(NumpyMatrixBasedOperator):
         zero (e.g. for affine decomposition). Otherwise they are set to one.
     name
         Name of the operator.
+
+    Author: Julia Brunken (slightly changed version of DiffusionOperatorP1)
     '''
 
     sparse = True

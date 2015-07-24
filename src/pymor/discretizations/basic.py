@@ -2,6 +2,8 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Extended by Julia Brunken (InstationaryDiscretizationNDim)
 
 from __future__ import absolute_import, division, print_function
 
@@ -292,12 +294,14 @@ class InstationaryDiscretization(DiscretizationBase):
 
 
 class InstationaryDiscretizationNDim(DiscretizationBase):
-    '''Generic class for discretizations of stationary problems.
+    '''Generic class for discretizations of instationary systems of equations.
 
-    This class describes instationary problems given by the equations::
+    This class describes instationary systems given by the equations::
 
         M * ∂_t u(t, μ) + L(u(μ), t, μ) = F(t, μ)
                                 u(0, μ) = u_0(μ)
+
+    for a vector-valued function u of dimension m.
 
     for t in [0,T], where L is a (possibly) non-linear time-dependent
     |Operator|, F is a time-dependent linear |Functional|, and u_0 the
@@ -306,6 +310,8 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
 
     Parameters
     ----------
+    sysdim
+        The dimension of the system.
     T
         The end-time T.
     initial_data
@@ -362,11 +368,13 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         The mass operator M. Synonymous for `operators['mass']`.
     time_stepper
         The provided time-stepper.
+
+    Author: Julia Brunken (Extension of class: InstationaryDiscretization
     '''
 
     sid_ignore = ('visualizer', 'cache_region', 'name')
 
-    def __init__(self, sysdim, T, initial_data, operator, analytical_problem=None, rhs=None, mass=None, time_stepper=None, num_values=None,
+    def __init__(self, sysdim, T, initial_data, operator, rhs=None, mass=None, time_stepper=None, num_values=None,
                  products=None, parameter_space=None, estimator=None, visualizer=None, cache_region='disk',
                  name=None):
         for j in range(sysdim):
@@ -374,7 +382,6 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
             assert not isinstance(initial_data[j], OperatorInterface) or initial_data[j].dim_source == 1
             if isinstance(initial_data[j], VectorArrayInterface):
                 initial_data[j] = VectorOperator(initial_data[j], name='initial_data')
-
 
         assert isinstance(operator, OperatorInterface)
         assert rhs is None or isinstance(rhs, OperatorInterface) and rhs.linear
@@ -392,7 +399,7 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
                                                          vector_operators=vector_operators,
                                                          products=products, estimator=estimator,
                                                          visualizer=visualizer, cache_region=cache_region, name=name)
-        self.sysdim=sysdim
+        self.sysdim = sysdim
         self.T = T
         self.dim_solution = operator.dim_source
         self.type_solution = operator.type_source
@@ -402,14 +409,14 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         self.mass = mass
         self.time_stepper = time_stepper
         self.num_values = num_values
-        self.build_parameter_type(local_type=({'komp':0,
-                                                    'm':0,
-                                                    'Minv':(sysdim,sysdim),
-                                                    'MinvS':(sysdim,sysdim),
-                                                    'MinvD':(sysdim,sysdim),
-                                                    'basis_werte':(1,sysdim),
-                                                    'basis_rand_l':(sysdim,),
-                                                    'basis_rand_r':(sysdim,)}),local_global=True, inherits=(operator, rhs, mass,), provides={'_t': 0})
+        self.build_parameter_type(local_type=({'komp': 0,
+                                                    'm': 0,
+                                                    'Minv': (sysdim, sysdim),
+                                                    'MinvS': (sysdim, sysdim),
+                                                    'MinvD': (sysdim, sysdim),
+                                                    'basis_werte': (1, sysdim),
+                                                    'basis_rand_l': (sysdim,),
+                                                    'basis_rand_r': (sysdim,)}), local_global=True, inherits=(operator, rhs, mass,), provides={'_t': 0})
         self.parameter_space = parameter_space
 
         if hasattr(time_stepper, 'nt'):
@@ -436,7 +443,6 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
             kwargs['time_stepper'] = self.time_stepper.with_(nt=kwargs.pop('time_stepper_nt'))
 
         return self._with_via_init(kwargs)
-
 
     def _solve(self, mu=None):
         mu = self.parse_parameter(mu).copy() if mu is not None else Parameter({})

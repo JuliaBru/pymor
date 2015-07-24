@@ -3,6 +3,8 @@
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
+# Author: Julia Brunken, Extension of analyticalproblems.elliptic
+
 from __future__ import absolute_import, division, print_function
 
 from pymor.core import ImmutableInterface
@@ -62,7 +64,7 @@ class EllipticPlusProblem(ImmutableInterface, Named):
         self.rhs = rhs
         self.diffusion_functions = diffusion_functions
         self.diffusion_functionals = diffusion_functionals
-        self.absorb_functions=absorb_functions
+        self.absorb_functions = absorb_functions
         self.absorb_functionals = absorb_functionals
         self.dirichlet_data = dirichlet_data
         self.name = name

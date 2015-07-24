@@ -1,6 +1,8 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+#Extended by Julia Brunken
 
 from __future__ import absolute_import, division, print_function
 
@@ -59,6 +61,8 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     -------
     |VectorArray| of POD modes.
 
+    Extended by Julia Brunken (to provide MemoryError or too long computation times for large numbers of snapshots)
+
     '''
 
     assert isinstance(A, VectorArrayInterface)
@@ -81,7 +85,7 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     except(MemoryError):
         print('MemoryError')
         At=NumpyVectorArray(A.data.T)
-        B = (At).gramian() #if product is None else product.apply2(At, At, pairwise=False)
+        B = (At).gramian()
         MemError=True
 
     if symmetrize:     # according to rbmatlab this is necessary due to rounding

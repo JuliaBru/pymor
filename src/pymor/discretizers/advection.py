@@ -1,6 +1,8 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Extended by Julia Brunken (discretize_nonlinear_instationary_advection_fv_ndim)
 
 from __future__ import absolute_import, division, print_function
 
@@ -142,15 +144,8 @@ def discretize_nonlinear_instationary_advection_fv(analytical_problem, diameter=
     return discretization, {'grid': grid, 'boundary_info': boundary_info}
 
 
-
-
-
-
-
-
 def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysdim, diameter=None, CFL=1, num_flux='godunov_upwind',
-                                                   num_values=None,
-                                                   domain_discretizer=None, grid=None, boundary_info=None):
+                                                   num_values=None, domain_discretizer=None, grid=None, boundary_info=None):
     '''Discretizes an |InstationaryAdvectionProblem| using the finite volume method.
 
     Simple explicit Euler time-stepping is used for time-discretization.
@@ -196,14 +191,14 @@ def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysd
             :grid:           The generated |Grid|.
             :boundary_info:  The generated |BoundaryInfo|.
 
-
+    Author: Julia Brunken (Extension of discretize_nonlinear_instationary_advection_fv)
     '''
 
     assert isinstance(analytical_problem, InstationaryAdvectionProblem)
     assert grid is None or boundary_info is not None
     assert boundary_info is None or grid is not None
     assert grid is None or domain_discretizer is None
-    assert num_flux in ('godunov_upwind')
+    assert num_flux in 'godunov_upwind'
 
     if grid is None:
         domain_discretizer = domain_discretizer or discretize_domain_default
@@ -214,56 +209,20 @@ def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysd
 
     p = analytical_problem
 
-    #if num_flux == 'lax_friedrichs':
-    #    L = nonlinear_advection_lax_friedrichs_operator(grid, boundary_info, p.flux_function,
-    #                                                    dirichlet_data=p.dirichlet_data, lxf_lambda=lxf_lambda)
-    #elif num_flux == 'engquist_osher':
-    #    L = nonlinear_advection_engquist_osher_operator(grid, boundary_info, p.flux_function,
-    #                                                    p.flux_function_derivative,
-    #                                                    gausspoints=eo_gausspoints, intervals=eo_intervals,
-    #                                                    dirichlet_data=p.dirichlet_data)
-    #else:
-    #    L = nonlinear_advection_simplified_engquist_osher_operator(grid, boundary_info, p.flux_function,
-    #                                                               p.flux_function_derivative,
-    #                                                               dirichlet_data=p.dirichlet_data)
-
     if num_flux == 'godunov_upwind':
-        L=godunov_upwind_operator(sysdim, grid, boundary_info,p.flux_function,p.flux_matrix,p.low_order, dirichlet_data=p.dirichlet_data)
+        L = godunov_upwind_operator(sysdim, grid, boundary_info, p.flux_function, p.flux_matrix, p.low_order, dirichlet_data=p.dirichlet_data)
 
     F = None if p.rhs is None else L2ProductFunctional(grid, p.rhs)
 
-
-
-
-#    if p.initial_data.parametric:
-#        def initial_projection(U, mu):
-#            I = p.initial_data.evaluate(grid.quadrature_points(0, order=2), mu).squeeze()
-#            I = np.sum(I * grid.reference_element.quadrature(order=2)[1], axis=1) * (1. / grid.reference_element.volume)
-#            I = NumpyVectorArray(I, copy=False)
-#            return I.lincomb(U).data
-#
-#        I = NumpyGenericOperator(initial_projection, dim_range=grid.size(0), linear=True,
-#                                 parameter_type=p.initial_data.parameter_type)
-#    else:
-
-    I=dict.fromkeys(range(sysdim))
-#    for j in range(sysdim):
-#        I[j] = p.initial_data[j].evaluate(grid.quadrature_points(0, order=2)).squeeze()
-#        I[j] = np.sum(I[j] * grid.reference_element.quadrature(order=2)[1], axis=1) * (1. / grid.reference_element.volume)
-#        I[j] = NumpyVectorArray(I[j], copy=False)
-#        inject_sid(I[j], __name__ + '.discretize_nonlinear_instationary_advection_fv_ndim.initial_data', p.initial_data, grid)
-    #build_parameter_type({'komp':0})
-    p.basis_dict.update({'komp':0})
-    mu=Parameter(p.basis_dict)
+    I = dict.fromkeys(range(sysdim))
+    p.basis_dict.update({'komp': 0})
+    mu = Parameter(p.basis_dict)
     for j in range(sysdim):
-        mu['komp']=j
-        I[j]=p.initial_data.evaluate(grid.quadrature_points(0,order=2),mu).squeeze()
-        I[j]=np.sum(I[j] * grid.reference_element.quadrature(order=2)[1], axis=1) * (1. / grid.reference_element.volume)
+        mu['komp'] = j
+        I[j] = p.initial_data.evaluate(grid.quadrature_points(0, order=2), mu).squeeze()
+        I[j] = np.sum(I[j] * grid.reference_element.quadrature(order=2)[1], axis=1) * (1. / grid.reference_element.volume)
         I[j] = NumpyVectorArray(I[j], copy=False)
         inject_sid(I[j], __name__ + '.discretize_nonlinear_instationary_advection_fv_ndim.initial_data', p.initial_data, grid)
-    #build_parameter_type({'komp':0})
-
-    #Ihelp=p.initial_data.evaluate(grid.quadrature_points(0,order=2),mu=sysdim)
 
     products = {'l2': L2Product(grid, boundary_info)}
     if grid.dim == 2:
@@ -274,15 +233,14 @@ def discretize_nonlinear_instationary_advection_fv_ndim(analytical_problem, sysd
         visualizer = None
     parameter_space = p.parameter_space if hasattr(p, 'parameter_space') else None
 
-    dx=grid._width
-    dt=CFL*dx
-    nt=int(np.ceil(p.T/dt))
+    dx = grid._width
+    dt = CFL*dx
+    nt = int(np.ceil(p.T / dt))
 
     time_stepper = ExplicitEulerTimeStepperNDim(nt=nt)
 
-
     discretization = InstationaryDiscretizationNDim(sysdim, operator=L, rhs=F, initial_data=I, T=p.T, products=products,
-                                                time_stepper=time_stepper, analytical_problem=p,
+                                                time_stepper=time_stepper,
                                                 parameter_space=parameter_space, visualizer=visualizer,
                                                 num_values=num_values, name='{}_FV'.format(p.name))
 

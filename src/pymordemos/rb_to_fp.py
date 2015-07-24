@@ -2,6 +2,8 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Author: Julia Brunken
 
 '''
 Collection of different functions needed for FP-RB basis generation
@@ -29,7 +31,7 @@ getLogger('pymor.discretizations').setLevel('INFO')
 
 
 def fperror(V, FPLoes):
-    # Computes error between reduced solution (given as NumpyVectorArray) and imported reference solution (given as np.array)
+    # Computes the error between reduced solution (given as NumpyVectorArray) and imported reference solution (given as np.array)
     Vd = V.data
     (nt, nx) = Vd.shape
     (ntf, nxf) = FPLoes.shape

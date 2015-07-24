@@ -2,6 +2,8 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Extended by Julia Brunken (LinearGodunovUpwindFlux, AdvectionOperatorNDim, godunov_upwind_operator
 
 ''' This module provides some operators for finite volume discretizations.'''
 
@@ -195,29 +197,30 @@ class LinearGodunovUpwindFlux(NumericalConvectiveFluxInterface):
     flux
         |Function| defining the analytical flux `f`.
 
+    Author: Julia Brunken
     '''
 
     def __init__(self, flux, flux_matrix):
         self.flux = flux
-        self.flux_matrix=flux_matrix
+        self.flux_matrix = flux_matrix
         self.build_parameter_type(inherits=(flux,))
 
     def evaluate_stage1(self, U, mu=None):
-        return U, U[...,np.newaxis]
+        return U, U[..., np.newaxis]
 
     def evaluate_stage2(self, stage1_data, unit_outer_normals, volumes, mu=None):
         U, F = stage1_data
 
         A=self.flux_matrix
-        assert A.ndim==2
-        assert A.shape[0]==A.shape[1]
-        w,V=np.linalg.eig(A)
-        wp=(w[...]>0)*w
-        wn=(w[...]<0)*w
-        Apos=np.dot(np.dot(V,np.diag(wp)),np.linalg.inv(V))
-        Aneg=np.dot(np.dot(V,np.diag(wn)),np.linalg.inv(V))
-        Aabs=Apos-Aneg
-        h=np.dot(A,(U[...,0]+U[...,1]))*unit_outer_normals[:,0]-np.dot(Aabs,(U[...,1]-U[...,0]))
+        assert A.ndim == 2
+        assert A.shape[0] == A.shape[1]
+        w, V = np.linalg.eig(A)
+        wp = (w[...] > 0)*w
+        wn = (w[...] < 0)*w
+        Apos = np.dot(np.dot(V,np.diag(wp)),np.linalg.inv(V))
+        Aneg = np.dot(np.dot(V,np.diag(wn)),np.linalg.inv(V))
+        Aabs = Apos - Aneg
+        h = np.dot(A,(U[..., 0]+U[..., 1]))*unit_outer_normals[:, 0] - np.dot(Aabs,(U[..., 1]-U[..., 0]))
         return 0.5*h
 
 
@@ -350,18 +353,15 @@ class NonlinearAdvectionOperator(OperatorBase):
         return NumpyVectorArray(R)
 
 
-
 class AdvectionOperatorNDim(OperatorBase):
 
     '''Nonlinear finite volume advection |Operator|.
     for Upwind Schemes for Systems
-    ONED
+    One Space Dimension!!
 
     The operator is of the form ::
 
         L(u, mu)(x) = ∇ ⋅ f(u(x), mu) + g(u,x)
-
-
 
     .. note ::
         For Neumann boundaries, currently only zero boundary values are implemented.
@@ -383,6 +383,8 @@ class AdvectionOperatorNDim(OperatorBase):
         boundary is assumed.
     name
         The name of the operator.
+
+    Author: Julia Brunken (Extension of NonlinearAdvectionOperator)
     '''
 
     type_source = type_range = NumpyVectorArray
@@ -390,30 +392,17 @@ class AdvectionOperatorNDim(OperatorBase):
 
     def __init__(self, sysdim, grid, boundary_info, numerical_flux, low_order_terms=None, dirichlet_data=None, name=None):
         self.grid = grid
-        self.sysdim=sysdim
-        assert grid.dim==1
+        self.sysdim = sysdim
+        assert grid.dim == 1
         self.boundary_info = boundary_info
         self.numerical_flux = numerical_flux
-        self.low_order_terms= low_order_terms
+        self.low_order_terms = low_order_terms
         self.dirichlet_data = dirichlet_data
-#        for j in range(sysdim):
-#            assert dirichlet_data[j] is None or isinstance(dirichlet_data[j], FunctionInterface)
-#        for j in range(sysdim):
         assert dirichlet_data is None or isinstance(dirichlet_data, FunctionInterface)
-        #if (isinstance(dirichlet_data[0], FunctionInterface) and boundary_info.has_dirichlet
-        #    and not dirichlet_data[0].parametric):
-        #    self._dirichlet_values = dict.fromkeys(range(sysdim))
-        #    self._dirichlet_values_flux_shaped = dict.fromkeys(range(sysdim))
-        #    for j in range(sysdim):
-        #        self._dirichlet_values[j] = self.dirichlet_data[j](grid.centers(1)[boundary_info.dirichlet_boundaries(1)])
-        #        self._dirichlet_values[j] = self._dirichlet_values[j].ravel()
-        #        self._dirichlet_values_flux_shaped[j] = self._dirichlet_values[j].reshape((-1, 1))
-
-
         self.name = name
         self.build_parameter_type(inherits=(numerical_flux, dirichlet_data))
-        self.dim_source= grid.size(0)
-        self.dim_range=grid.size(0)*self.sysdim
+        self.dim_source = grid.size(0)
+        self.dim_range = grid.size(0)*self.sysdim
         self.with_arguments = self.with_arguments.union('numerical_flux_{}'.format(arg)
                                                         for arg in numerical_flux.with_arguments)
 
@@ -446,14 +435,12 @@ class AdvectionOperatorNDim(OperatorBase):
         mu = self.parse_parameter(mu)
 
         #ind wird gebraucht fuer Zeit-Mehrschrittverfahren?? Hab ich nicht..
-        assert len(U[0])==1
+        assert len(U[0]) == 1
         #ind = xrange(len(U[0])) if ind is None else ind
 
         R=np.zeros((self.sysdim,U[0].dim))
         for j in range(self.sysdim):
             U[j] = U[j].data
-
-
 
         g = self.grid
         bi = self.boundary_info
@@ -467,9 +454,9 @@ class AdvectionOperatorNDim(OperatorBase):
         if bi.has_dirichlet:
             dirichlet_boundaries = bi.dirichlet_boundaries(1)
 
-            dirichlet_values=dict.fromkeys(range(self.sysdim))
+            dirichlet_values = dict.fromkeys(range(self.sysdim))
             for j in range(self.sysdim):
-                mu['komp']=j
+                mu['komp'] = j
                 if hasattr(self, '_dirichlet_values'):
                     dirichlet_values[j] = self._dirichlet_values[j]
                 elif self.dirichlet_data is not None:
@@ -477,68 +464,56 @@ class AdvectionOperatorNDim(OperatorBase):
                 else:
                     dirichlet_values[j] = np.zeros_like(dirichlet_boundaries)
 
-#       for i, j in enumerate(ind): #fuer euler schwachsinn weil ind sowieso 1?
+        # for i, j in enumerate(ind): #fuer euler egal weil ind sowieso 1?
 
-        #Ui = U[j]
-        #Ri = R[i]
-
+        # Ui = U[j]
+        # Ri = R[i]
 
         Usys=U[0]
         dirichlet_sys=np.array([dirichlet_values[0]])
         for k in range(1,self.sysdim):
-            Usys=np.append(Usys,U[k],axis=0) #U.shape=(sysdim,xshape)
+            Usys=np.append(Usys,U[k],axis=0) # U.shape=(sysdim,xshape)
             dirichlet_sys=np.append(dirichlet_sys,[dirichlet_values[k]],axis=0)
 
-
         F_dirichlet = self.numerical_flux.evaluate_stage1(dirichlet_sys, mu)
-
 
         F = self.numerical_flux.evaluate_stage1(Usys, mu)
         F_edge = [f[:,SUPE] for f in F]
 
         for f in F_edge:
-            f[:,boundaries, 1] = f[:,boundaries, 0]
+            f[:, boundaries, 1] = f[:, boundaries, 0]
         if bi.has_dirichlet:
             for f, f_d in izip(F_edge, F_dirichlet):
-                f[:,dirichlet_boundaries, 1] = f_d
+                f[:, dirichlet_boundaries, 1] = f_d
 
         NUM_FLUX = self.numerical_flux.evaluate_stage2(F_edge, unit_outer_normals, VOLS, mu)
 
         if bi.has_neumann:
             NUM_FLUX[bi.neumann_boundaries(1)] = 0
 
-
-
         if self.low_order_terms is not None:
-            x=g.quadrature_points(0,order=1)
-            xu=np.append(x[...,0],Usys.T,axis=1)
+            x = g.quadrature_points(0, order=1)
+            xu = np.append(x[..., 0], Usys.T, axis=1)
 
-            low_order=dict.fromkeys(range(self.sysdim))
+            low_order = dict.fromkeys(range(self.sysdim))
             for j in range(self.sysdim):
-                mu['komp']=j
-                assert isinstance(self.low_order_terms,FunctionInterface)
-                low_order[j]=self.low_order_terms.evaluate(xu,mu)
+                mu['komp'] = j
+                assert isinstance(self.low_order_terms, FunctionInterface)
+                low_order[j] = self.low_order_terms.evaluate(xu, mu)
 
-
-
-        Rout=dict.fromkeys(range(self.sysdim))
+        Rout = dict.fromkeys(range(self.sysdim))
 
         for j in range(self.sysdim):
-            iadd_masked(R[j,...], NUM_FLUX[j,...], SUPE[:, 0])
-            isub_masked(R[j,...], NUM_FLUX[j,...], SUPE[:, 1])
+            iadd_masked(R[j, ...], NUM_FLUX[j, ...], SUPE[:, 0])
+            isub_masked(R[j, ...], NUM_FLUX[j, ...], SUPE[:, 1])
 
-            R[j,...] /= g.volumes(0)
+            R[j, ...] /= g.volumes(0)
             if self.low_order_terms is not None:
-                R[j,...]+=low_order[j]
+                R[j, ...] += low_order[j]
 
-
-
-            Rout[j]=NumpyVectorArray(R[j,...])
+            Rout[j] = NumpyVectorArray(R[j,...])
 
         return Rout
-
-
-
 
 
 def nonlinear_advection_lax_friedrichs_operator(grid, boundary_info, flux, lxf_lambda=1.0,
@@ -561,9 +536,9 @@ def nonlinear_advection_engquist_osher_operator(grid, boundary_info, flux, flux_
     num_flux = EngquistOsherFlux(flux, flux_derivative, gausspoints=gausspoints, intervals=intervals)
     return NonlinearAdvectionOperator(grid, boundary_info, num_flux, dirichlet_data, name)
 
-def godunov_upwind_operator(sysdim, grid, boundary_info, flux,flux_matrix,low_order_terms, dirichlet_data=None, name=None):
+def godunov_upwind_operator(sysdim, grid, boundary_info, flux, flux_matrix, low_order_terms, dirichlet_data=None, name=None):
     '''Instantiate a :class:`NonlinearAdvectionOperatorNDim` using :class:`LinearGodunovUpwindFlux`.'''
-    num_flux=LinearGodunovUpwindFlux(flux,flux_matrix)
+    num_flux = LinearGodunovUpwindFlux(flux, flux_matrix)
     return AdvectionOperatorNDim(sysdim,  grid, boundary_info, num_flux,low_order_terms, dirichlet_data, name)
 
 
