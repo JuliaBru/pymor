@@ -32,7 +32,7 @@ class PyTest(TestCommand):
     def finalize_options(self):
         TestCommand.finalize_options(self)
         print(sys.argv[3:])
-        self.test_args = sys.argv[3:] + ['src/pymortests']
+        self.test_args = sys.argv[3:] + ['--cov=pymor', '--cov-report=html', '--cov-report=xml', 'src/pymortests']
         self.test_suite = True
 
     def run_tests(self):
@@ -178,7 +178,7 @@ def setup_package():
         package_dir={'': 'src'},
         packages=find_packages('src'),
         include_package_data=True,
-        scripts=['src/pymor-demo', 'distribute_setup.py', 'dependencies.py', 'install.py'],
+        scripts=['src/pymor-demo', 'distribute_setup.py', 'dependencies.py' ],
         url='http://pymor.org',
         description=' ' ,
         long_description=open('README.txt').read(),

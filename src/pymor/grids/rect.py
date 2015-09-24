@@ -6,12 +6,12 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from pymor.grids.interfaces import AffineGridInterface
+from pymor.grids.interfaces import AffineGridWithOrthogonalCentersInterface
 from pymor.grids.referenceelements import square
 
 
-class RectGrid(AffineGridInterface):
-    '''Basic implementation of a rectangular |Grid| on a rectangular domain.
+class RectGrid(AffineGridWithOrthogonalCentersInterface):
+    """Basic implementation of a rectangular |Grid| on a rectangular domain.
 
     The global face, edge and vertex indices are given as follows ::
 
@@ -36,13 +36,13 @@ class RectGrid(AffineGridInterface):
     domain
         Tuple `(ll, ur)` where `ll` defines the lower left and `ur` the upper right
         corner of the domain.
-    '''
+    """
 
     dim = 2
     dim_outer = 2
     reference_element = square
 
-    def __init__(self, num_intervals=(2, 2), domain=[[0, 0], [1, 1]],
+    def __init__(self, num_intervals=(2, 2), domain=([0, 0], [1, 1]),
                  identify_left_right=False, identify_bottom_top=False):
         if identify_left_right:
             assert num_intervals[0] > 1
@@ -50,6 +50,8 @@ class RectGrid(AffineGridInterface):
             assert num_intervals[1] > 1
         self.num_intervals = num_intervals
         self.domain = np.array(domain)
+        self.identify_left_right = identify_left_right
+        self.identify_bottom_top = identify_bottom_top
 
         self.x0_num_intervals = num_intervals[0]
         self.x1_num_intervals = num_intervals[1]
@@ -131,10 +133,14 @@ class RectGrid(AffineGridInterface):
         B = shifts.T
         self.__embeddings = (A, B)
 
+    def __reduce__(self):
+        return (RectGrid,
+                (self.num_intervals, self.domain, self.identify_left_right, self.identify_bottom_top))
+
     def __str__(self):
         return (('Rect-Grid on domain [{xmin},{xmax}] x [{ymin},{ymax}]\n' +
-                'x0-intervals: {x0ni}, x1-intervals: {x1ni}\n' +
-                'faces: {faces}, edges: {edges}, vertices: {vertices}')
+                 'x0-intervals: {x0ni}, x1-intervals: {x1ni}\n' +
+                 'faces: {faces}, edges: {edges}, vertices: {vertices}')
                 .format(xmin=self.x0_range[0], xmax=self.x0_range[1],
                         ymin=self.x1_range[0], ymax=self.x1_range[1],
                         x0ni=self.x0_num_intervals, x1ni=self.x1_num_intervals,
@@ -162,31 +168,56 @@ class RectGrid(AffineGridInterface):
             return super(RectGrid, self).embeddings(codim)
 
     def structured_to_global(self, codim):
-        '''Returns an array which maps structured indices to global codim-`codim` indices.
+        """Returns an array which maps structured indices to global codim-`codim` indices.
 
         In other words `structed_to_global(codim)[i, j]` is the global index of the i-th in
         x0-direction and j-th in x1-direction codim-`codim` entity of the grid.
-        '''
-        if codim not in (0, 2):
+        """
+        if self.identify_left_right or self.identify_bottom_top or codim not in (0, 2):
             raise NotImplementedError
         return self._structured_to_global[codim]
 
     def global_to_structured(self, codim):
-        '''Returns an array which maps global codim-`codim` indices to structured indices.
+        """Returns an array which maps global codim-`codim` indices to structured indices.
 
         I.e. if `GTS = global_to_structured(codim)` and `STG = structured_to_global(codim)`, then
         `STG[GTS[:, 0], GTS[:, 1]] == numpy.arange(size(codim))`.
-        '''
-        if codim not in (0, 2):
+        """
+        if self.identify_left_right or self.identify_bottom_top or codim not in (0, 2):
             raise NotImplementedError
         return self._global_to_structured[codim]
 
     def vertex_coordinates(self, dim):
-        '''Returns an array of the x_dim koordinates of the grid vertices.
+        """Returns an array of the x_dim koordinates of the grid vertices.
 
         I.e. ::
 
            centers(2)[structured_to_global(2)[i, j]] == np.array([vertex_coordinates(0)[i], vertex_coordinates(1)[j]])
-        '''
+        """
         assert 0 <= dim < 2
         return np.linspace(self.domain[0, dim], self.domain[1, dim], self.num_intervals[dim] + 1)
+
+    def orthogonal_centers(self):
+        return self.centers(0)
+
+    def visualize(self, U, codim=2, **kwargs):
+        """Visualize scalar data associated to the grid as a patch plot.
+
+        Parameters
+        ----------
+        U
+            |VectorArray| of the data to visualize. If `len(U) > 1`, the data is visualized
+            as a time series of plots. Alternatively, a tuple of |VectorArrays| can be
+            provided, in which case a subplot is created for each entry of the tuple. The
+            lengths of all arrays have to agree.
+        codim
+            The codimension of the entities the data in `U` is attached to (either 0 or 2).
+        kwargs
+            See :func:`~pymor.gui.qt.visualize_patch`
+        """
+        from pymor.gui.qt import visualize_patch
+        from pymor.vectorarrays.numpy import NumpyVectorArray
+        if not isinstance(U, NumpyVectorArray):
+            U = NumpyVectorArray(U, copy=False)
+        bounding_box = kwargs.pop('bounding_box', self.domain)
+        visualize_patch(self, U, codim=codim, bounding_box=bounding_box, **kwargs)

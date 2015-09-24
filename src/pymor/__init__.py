@@ -4,12 +4,10 @@
 
 import os
 
-from pymor.defaults import defaults
-
+from pymor.core.defaults import load_defaults_from_file
 
 
 class Version(object):
-
     def __init__(self, revstring):
 
         # special casing for debian versions like '0.1.3~precise~ppa9'
@@ -17,7 +15,7 @@ class Version(object):
             revstring = revstring[:revstring.index('~')]
         revstringparts = revstring.strip().split('-')
         if len(revstringparts) not in (1, 3):
-            raise ValueError('Invalid revstring')
+            raise ValueError('Invalid revstring: ' + revstring)
         if len(revstringparts) == 3:
             self.distance = int(revstringparts[1])
             self.shorthash = revstringparts[2]
@@ -32,8 +30,10 @@ class Version(object):
                 raise ValueError('Invalid revstring')
             version_parts[-1] = s[0]
             self.rc_number = int(s[1])
+            self.has_rc_number = True
         else:
             self.rc_number = 0
+            self.has_rc_number = False
 
         self.version = tuple(int(x) for x in version_parts)
         self.full_version = self.version + (self.rc_number,)
@@ -56,7 +56,7 @@ class Version(object):
     def __str__(self):
         git_part = '-{}-{}'.format(self.distance, self.shorthash) if self.distance else ''
         version_part = '.'.join(map(str, self.version))
-        rc_part = 'rc{}'.format(self.rc_number) if self.rc_number else ''
+        rc_part = 'rc{}'.format(self.rc_number) if self.has_rc_number else ''
         return version_part + rc_part + git_part
 
     def __repr__(self):
@@ -71,15 +71,18 @@ try:
         revstring = os.environ['PYMOR_DEB_VERSION']
     else:
         import pymor.version as _version
+
         revstring = getattr(_version, 'revstring', NO_VERSIONSTRING)
 except ImportError:
     import os.path
     import subprocess
+
     try:
         revstring = subprocess.check_output(['git', 'describe', '--tags', '--candidates', '20', '--match', '*.*.*'],
                                             cwd=os.path.dirname(__file__))
     except subprocess.CalledProcessError as e:
         import sys
+
         sys.stderr.write('''Warning: Could not determine current pyMOR version.
 Failed to import pymor.version and 'git describe --tags --candidates 20 --match *.*.*'
 returned
@@ -94,3 +97,28 @@ finally:
 
 VERSION = version
 print('Loading pymor version {}'.format(VERSION))
+
+
+import os
+if 'PYMOR_DEFAULTS' in os.environ:
+    filename = os.environ['PYMOR_DEFAULTS']
+    if filename in ('', 'NONE'):
+        print('Not loading any defaults from config file')
+    else:
+        for fn in filename.split(':'):
+            if not os.path.exists(fn):
+                raise IOError('Cannot load defaults from file ' + fn)
+            print('Loading defaults from file ' + fn + ' (set by PYMOR_DEFAULTS)')
+            load_defaults_from_file(fn)
+else:
+    filename = os.path.join(os.getcwd(), 'pymor_defaults.py')
+    if os.path.exists(filename):
+        if os.stat(filename).st_uid != os.getuid():
+            raise IOError('Cannot load defaults from config file ' + filename
+                          + ': not owned by user running Python interpreter')
+        print('Loading defaults from file ' + filename)
+        load_defaults_from_file(filename)
+
+from pymor.core.logger import set_log_levels, set_log_format
+set_log_levels()
+set_log_format()

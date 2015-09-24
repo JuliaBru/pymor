@@ -8,16 +8,16 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from pymor.algorithms.timestepping import ImplicitEulerTimeStepper
-from pymor.analyticalproblems import ThermalBlockProblem
-from pymor.discretizations import InstationaryDiscretization
-from pymor.discretizers import discretize_elliptic_cg
-from pymor.la.numpyvectorarray import NumpyVectorArray
+from pymor.analyticalproblems.thermalblock import ThermalBlockProblem
+from pymor.discretizations.basic import InstationaryDiscretization
+from pymor.discretizers.elliptic import discretize_elliptic_cg
+from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
 def parabolic_demo():
     p = ThermalBlockProblem(parameter_range=(0.01, 1))
     d_stat, d_data = discretize_elliptic_cg(p, diameter=1./100)
-    U0 = NumpyVectorArray(np.zeros(d_stat.operator.dim_source))
+    U0 = NumpyVectorArray(np.zeros(d_stat.operator.source.dim))
     time_stepper = ImplicitEulerTimeStepper(50)
 
     d = InstationaryDiscretization(operator=d_stat.operator, rhs=d_stat.rhs, mass=d_stat.l2_product,

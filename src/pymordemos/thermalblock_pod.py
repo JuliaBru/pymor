@@ -2,8 +2,10 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Contributors: Michael Laier <m_laie01@uni-muenster.de>
 
-'''Thermalblock with POD demo.
+"""Thermalblock with POD demo.
 
 Usage:
   thermalblock_pod.py [-hp] [--grid=NI] [--help] [--plot-solutions] [--pod-norm=NORM]
@@ -35,24 +37,20 @@ Options:
 
   --test=COUNT           Use COUNT snapshots for stochastic error estimation
                          [default: 10].
-'''
+"""
 
 from __future__ import absolute_import, division, print_function
 
 import sys
-import math as m
 import time
 
 import numpy as np
 from docopt import docopt
 
-import pymor.core as core
-core.logger.MAX_HIERACHY_LEVEL = 2
-from pymor.analyticalproblems import ThermalBlockProblem
-from pymor.discretizers import discretize_elliptic_cg
-from pymor.la.pod import pod
-from pymor.reductors import reduce_generic_rb
-core.getLogger('pymor.discretizations').setLevel('INFO')
+from pymor.algorithms.pod import pod
+from pymor.analyticalproblems.thermalblock import ThermalBlockProblem
+from pymor.discretizers.elliptic import discretize_elliptic_cg
+from pymor.reductors.basic import reduce_generic_rb
 
 
 def thermalblock_demo(args):
@@ -71,7 +69,7 @@ def thermalblock_demo(args):
     problem = ThermalBlockProblem(num_blocks=(args['XBLOCKS'], args['YBLOCKS']))
 
     print('Discretize ...')
-    discretization, _ = discretize_elliptic_cg(problem, diameter=m.sqrt(2) / args['--grid'])
+    discretization, _ = discretize_elliptic_cg(problem, diameter=1. / args['--grid'])
 
     print('The parameter type is {}'.format(discretization.parameter_type))
 
@@ -92,13 +90,13 @@ def thermalblock_demo(args):
 
     print('Solving on training set ...')
     S_train = list(discretization.parameter_space.sample_uniformly(args['SNAPSHOTS']))
-    snapshots = discretization.operator.type_source.empty(discretization.operator.dim_source, reserve=len(S_train))
+    snapshots = discretization.operator.source.empty(reserve=len(S_train))
     for mu in S_train:
         snapshots.append(discretization.solve(mu))
 
     print('Performing POD ...')
     pod_product = discretization.h1_product if args['--pod-norm'] == 'h1' else None
-    rb = pod(snapshots, modes=args['RBSIZE'], product=pod_product)
+    rb = pod(snapshots, modes=args['RBSIZE'], product=pod_product)[0]
 
     print('Reducing ...')
     reductor = reduce_generic_rb
@@ -120,8 +118,6 @@ def thermalblock_demo(args):
         cond = np.linalg.cond(rb_discretization.operator.assemble(mu)._matrix)
         if h1_err > h1_err_max:
             h1_err_max = h1_err
-            Umax = U
-            URBmax = URB
             mumax = mu
         if cond > cond_max:
             cond_max = cond

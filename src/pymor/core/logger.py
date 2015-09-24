@@ -4,7 +4,7 @@
 
 """Utilities for colorized log output.
 via http://stackoverflow.com/questions/384076/how-can-i-make-the-python-logging-output-to-be-colored
-Cannot not be moved because it's needed to be imported in the root __init__.py OR ELSE
+Can not be moved because it's needed to be imported in the root __init__.py OR ELSE
 """
 from __future__ import absolute_import, division, print_function
 import curses
@@ -12,10 +12,12 @@ import logging
 import os
 import time
 
+from pymor.core.defaults import defaults
+
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
 # The background is set with 40 plus the number of the color, and the foreground with 30
-# These are the sequences need to get colored ouput
+# These are the sequences needed to get colored output
 RESET_SEQ = "\033[0m"
 COLOR_SEQ = "\033[1;%dm"
 BOLD_SEQ = "\033[1m"
@@ -27,18 +29,8 @@ COLORS = {
     'ERROR':    RED
 }
 
-LOGLEVEL_MAPPING = {
-    'debug':     logging.DEBUG,
-    'info':      logging.INFO,
-    'error':     logging.ERROR,
-    'warn':      logging.WARN,
-    'warning':   logging.WARNING,
-    'critical':  logging.CRITICAL,
-    'fatal':     logging.FATAL,
-}
-
 FORMAT = '%(asctime)s$BOLD%(levelname)s|$BOLD%(name)s$RESET: %(message)s'
-MAX_HIERACHY_LEVEL = 3
+MAX_HIERARCHY_LEVEL = 1
 
 start_time = time.time()
 
@@ -68,28 +60,28 @@ class ColoredFormatter(logging.Formatter):
             except Exception:
                 self.use_color = False
 
-        def relative_time(secs=None):
-            if secs is not None:
-                elapsed = time.time() - start_time
-                if elapsed > 604800:
-                    self.datefmt = '%Ww %dd %H:%M:%S'
-                elif elapsed > 86400:
-                    self.datefmt = '%dd %H:%M:%S'
-                elif elapsed > 3600:
-                    self.datefmt = '%H:%M:%S'
-                return time.gmtime(elapsed)
-            else:
-                return time.gmtime()
-        self.converter = relative_time
-        super(ColoredFormatter, self).__init__(formatter_message(FORMAT, self.use_color), datefmt='%M:%S')
+        super(ColoredFormatter, self).__init__(formatter_message(FORMAT, self.use_color))
+
+    def formatTime(self, record, datefmt=None):
+        elapsed = int(time.time() - start_time)
+        days, remainder = divmod(elapsed, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if days:
+            return '{}d {:02}:{:02}:{:02}'.format(days, hours, minutes, seconds)
+        elif hours:
+            return '{:02}:{:02}:{:02}'.format(hours, minutes, seconds)
+        else:
+            return '{:02}:{:02}'.format(minutes, seconds)
 
     def format(self, record):
         if not record.msg:
             return ''
         tokens = record.name.split('.')
-        record.name = '.'.join(tokens[1:MAX_HIERACHY_LEVEL])
-        if len(tokens) > MAX_HIERACHY_LEVEL - 1:
-            record.name += '.' + tokens[-1]
+        if len(tokens) > MAX_HIERARCHY_LEVEL - 1:
+            record.name = '.'.join(tokens[1:MAX_HIERARCHY_LEVEL] + [tokens[-1]])
+        else:
+            record.name = '.'.join(tokens[1:MAX_HIERARCHY_LEVEL])
         levelname = record.levelname
         if self.use_color and levelname in COLORS.keys():
             if levelname is 'INFO':
@@ -102,16 +94,94 @@ class ColoredFormatter(logging.Formatter):
         return logging.Formatter.format(self, record)
 
 
-def getLogger(module, level=None, filename=None, handler_cls=logging.StreamHandler):
+@defaults('filename', sid_ignore='filename')
+def getLogger(module, level=None, filename=''):
+    """Get the logger of the respective module for pyMOR's logging facility.
+
+    Parameters
+    ----------
+    module
+        Name of the module.
+    level
+        If set, `logger.setLevel(level)` is called (see
+        :meth:`~logging.Logger.setLevel`).
+    filename
+        If not empty, path of an existing file where everything logged will be
+        written to.
+    """
     module = 'pymor' if module == '__main__' else module
     logger = logging.getLogger(module)
-    streamhandler = handler_cls()
+    streamhandler = logging.StreamHandler()
     streamformatter = ColoredFormatter()
     streamhandler.setFormatter(streamformatter)
-    logger.handlers = [streamhandler]
+    handlers = [streamhandler]
+    if filename:
+        filehandler = logging.FileHandler(filename)
+        fileformatter = ColoredFormatter()
+        filehandler.setFormatter(fileformatter)
+        handlers.append(filehandler)
+    logger.handlers = handlers
     logger.propagate = False
     if level:
-        logger.setLevel(LOGLEVEL_MAPPING[level])
+        logger.setLevel(level)
     return logger
 
-dummy_logger = getLogger('pymor.dummylogger', level='fatal')
+
+class DummyLogger(object):
+
+    __slots__ = []
+
+    def nop(self, *args, **kwargs):
+        return None
+
+    propagate = False
+    debug = nop
+    info = nop
+    warn = nop
+    warning = nop
+    error = nop
+    critical = nop
+    log = nop
+    exception = nop
+
+    def isEnabledFor(sefl, lvl):
+        return False
+
+    def getEffectiveLevel(self):
+        return None
+
+    def getChild(self):
+        return self
+
+
+dummy_logger = DummyLogger()
+
+
+@defaults('levels', sid_ignore=('levels',))
+def set_log_levels(levels={'pymor': 'INFO'}):
+    """Set log levels for pyMOR's logging facility.
+
+    Parameters
+    ----------
+    levels
+        Dict of log levels. Keys are names of loggers (see :func:`logging.getLogger`),
+        values are the log levels to set for the loggers of the given names
+        (see :meth:`~logging.Logger.setLevel`).
+    """
+    for k, v in levels.items():
+        getLogger(k).setLevel(v)
+
+
+@defaults('max_hierarchy_level', sid_ignore=('max_hierarchy_level'))
+def set_log_format(max_hierarchy_level=1):
+    """Set log levels for pyMOR's logging facility.
+
+    Parameters
+    ----------
+    max_hierarchy_level
+        The number of components of the loggers name which are printed.
+        (The first component is always stripped, the last component always
+        preserved.)
+    """
+    global MAX_HIERARCHY_LEVEL
+    MAX_HIERARCHY_LEVEL = max_hierarchy_level

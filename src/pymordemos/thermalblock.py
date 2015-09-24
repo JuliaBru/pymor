@@ -3,11 +3,12 @@
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
-'''Thermalblock demo.
+"""Thermalblock demo.
 
 Usage:
   thermalblock.py [-ehp] [--estimator-norm=NORM] [--extension-alg=ALG] [--grid=NI] [--help]
-                  [--plot-solutions] [--plot-error-sequence] [--reductor=RED] [--test=COUNT]
+                  [--pickle=PREFIX] [--plot-solutions] [--plot-error-sequence] [--reductor=RED]
+                  [--test=COUNT]
                   XBLOCKS YBLOCKS SNAPSHOTS RBSIZE
 
 
@@ -26,7 +27,7 @@ Options:
   -e, --with-estimator   Use error estimator.
 
   --estimator-norm=NORM  Norm (trivial, h1) in which to calculate the residual
-                         [default: trivial].
+                         [default: h1].
 
   --extension-alg=ALG    Basis extension algorithm (trivial, gram_schmidt, h1_gram_schmidt)
                          to be used [default: h1_gram_schmidt].
@@ -35,18 +36,23 @@ Options:
 
   -h, --help             Show this message.
 
+  --pickle=PREFIX        Pickle reduced discretizaion, as well as reconstructor and high-dimensional
+                         discretization to files with this prefix.
+
   -p, --plot-err         Plot error.
 
   --plot-solutions       Plot some example solutions.
 
+  --reductor=RED         Reductor (error estimator) to choose (traditional, residual_basis)
+                         [default: residual_basis]
+
   --test=COUNT           Use COUNT snapshots for stochastic error estimation
                          [default: 10].
-'''
+"""
 
 from __future__ import absolute_import, division, print_function
 
 import sys
-import math as m
 import time
 from functools import partial
 
@@ -54,16 +60,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from docopt import docopt
 
-import pymor.core as core
-core.logger.MAX_HIERACHY_LEVEL = 2
-from pymor.algorithms import greedy, trivial_basis_extension, gram_schmidt_basis_extension
-from pymor.analyticalproblems import ThermalBlockProblem
-from pymor.discretizers import discretize_elliptic_cg
-from pymor.reductors import reduce_to_subbasis
+from pymor.algorithms.basisextension import trivial_basis_extension, gram_schmidt_basis_extension
+from pymor.algorithms.greedy import greedy
+from pymor.analyticalproblems.thermalblock import ThermalBlockProblem
+from pymor.core.pickle import dump
+from pymor.discretizers.elliptic import discretize_elliptic_cg
+from pymor.parameters.functionals import ExpressionParameterFunctional
+from pymor.reductors.basic import reduce_to_subbasis
 from pymor.reductors.linear import reduce_stationary_affine_linear
-core.getLogger('pymor.algorithms').setLevel('INFO')
-core.getLogger('pymor.discretizations').setLevel('INFO')
-core.getLogger('pymor.la').setLevel('INFO')
+from pymor.reductors.stationary import reduce_stationary_coercive
 
 
 def thermalblock_demo(args):
@@ -77,6 +82,8 @@ def thermalblock_demo(args):
     assert args['--estimator-norm'] in {'trivial', 'h1'}
     args['--extension-alg'] = args['--extension-alg'].lower()
     assert args['--extension-alg'] in {'trivial', 'gram_schmidt', 'h1_gram_schmidt'}
+    args['--reductor'] = args['--reductor'].lower()
+    assert args['--reductor'] in {'traditional', 'residual_basis'}
 
     print('Solving on TriaGrid(({0},{0}))'.format(args['--grid']))
 
@@ -84,7 +91,8 @@ def thermalblock_demo(args):
     problem = ThermalBlockProblem(num_blocks=(args['XBLOCKS'], args['YBLOCKS']))
 
     print('Discretize ...')
-    discretization, _ = discretize_elliptic_cg(problem, diameter=m.sqrt(2) / args['--grid'])
+    discretization, _ = discretize_elliptic_cg(problem, diameter=1. / args['--grid'])
+    discretization.generate_sid()
 
     print('The parameter type is {}'.format(discretization.parameter_type))
 
@@ -102,7 +110,12 @@ def thermalblock_demo(args):
     print('RB generation ...')
 
     error_product = discretization.h1_product if args['--estimator-norm'] == 'h1' else None
-    reductor = partial(reduce_stationary_affine_linear, error_product=error_product)
+    coercivity_estimator=ExpressionParameterFunctional('min(diffusion)', discretization.parameter_type)
+    reductors = {'residual_basis': partial(reduce_stationary_coercive, error_product=error_product,
+                                   coercivity_estimator=coercivity_estimator),
+                 'traditional': partial(reduce_stationary_affine_linear, error_product=error_product,
+                                        coercivity_estimator=coercivity_estimator)}
+    reductor = reductors[args['--reductor']]
     extension_algorithms = {'trivial': trivial_basis_extension,
                             'gram_schmidt': gram_schmidt_basis_extension,
                             'h1_gram_schmidt': partial(gram_schmidt_basis_extension, product=discretization.h1_product)}
@@ -112,15 +125,24 @@ def thermalblock_demo(args):
                          extension_algorithm=extension_algorithm, max_extensions=args['RBSIZE'])
     rb_discretization, reconstructor = greedy_data['reduced_discretization'], greedy_data['reconstructor']
 
+    if args['--pickle']:
+        print('\nWriting reduced discretization to file {} ...'.format(args['--pickle'] + '_reduced'))
+        with open(args['--pickle'] + '_reduced', 'w') as f:
+            dump(rb_discretization, f)
+        print('Writing detailed discretization and reconstructor to file {} ...'.format(args['--pickle'] + '_detailed'))
+        with open(args['--pickle'] + '_detailed', 'w') as f:
+            dump((discretization, reconstructor), f)
+
     print('\nSearching for maximum error on random snapshots ...')
 
     def error_analysis(d, rd, rc, mus):
-        print('N = {}: '.format(rd.operator.dim_source), end='')
+        print('N = {}: '.format(rd.operator.source.dim), end='')
         h1_err_max = -1
         h1_est_max = -1
         cond_max = -1
         for mu in mus:
             print('.', end='')
+            sys.stdout.flush()
             u = rd.solve(mu)
             URB = rc.reconstruct(u)
             U = d.solve(mu)

@@ -7,14 +7,14 @@ from __future__ import absolute_import, division, print_function
 import time
 from itertools import izip
 
-from pymor.algorithms.basisextension import trivial_basis_extension
-from pymor.core import getLogger
+from pymor.algorithms.basisextension import gram_schmidt_basis_extension
 from pymor.core.exceptions import ExtensionError
+from pymor.core.logger import getLogger
 
 
 def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=True, error_norm=None,
-           extension_algorithm=trivial_basis_extension, target_error=None, max_extensions=None):
-    '''Greedy basis generation algorithm.
+           extension_algorithm=gram_schmidt_basis_extension, target_error=None, max_extensions=None):
+    """Greedy basis generation algorithm.
 
     This algorithm generates a reduced basis by iteratively adding the
     worst approximated solution snapshot for a given training set to the
@@ -44,7 +44,7 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
         The set of |Parameter| samples on which to perform the greedy search.
     initial_basis
         The initial reduced basis with which the algorithm starts. If `None`,
-        an empty basis is used as initial_basis.
+        an empty basis is used as initial basis.
     use_estimator
         If `True`, use `reduced_discretization.estimate()` to estimate the
         errors on the sample set. Otherwise a detailed simulation is
@@ -58,7 +58,7 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
         of the form `extension_algorithm(old_basis, new_vector)`, which
         returns a tuple `(new_basis, extension_data)`, where
         `extension_data` is a dict at least containing the key
-        `hierarchic`. `hierarchic` is set to `True` if `new_basis`
+        `hierarchic`. `hierarchic` should be set to `True` if `new_basis`
         contains `old_basis` as its first vectors.
     target_error
         If not `None`, stop the algorithm if the maximum (estimated) error
@@ -75,11 +75,9 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
         :reduced_discretization: The reduced |Discretization| obtained for the
                                  computed basis.
         :reconstructor:          Reconstructor for `reduced_discretization`.
-        :max_err:                Last estimated maximum error on the sample set.
-        :max_err_mu:             The parameter that corresponds to `max_err`.
         :max_errs:               Sequence of maximum errors during the greedy run.
         :max_err_mus:            The parameters corresponding to `max_errs`.
-    '''
+    """
 
     logger = getLogger('pymor.algorithms.greedy.greedy')
     samples = list(samples)
@@ -97,6 +95,12 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
         logger.info('Reducing ...')
         rd, rc, reduction_data = reductor(discretization, basis) if not hierarchic \
             else reductor(discretization, basis, extends=(rd, rc, reduction_data))
+
+        if len(samples) == 0:
+            logger.info('There is nothing else to do for empty samples.')
+            return {'basis': basis, 'reduced_discretization': rd, 'reconstructor': rc,
+                    'max_errs': [], 'max_err_mus': [], 'extensions': 0,
+                    'time': time.time() - tic, 'reduction_data': reduction_data}
 
         logger.info('Estimating errors ...')
         if use_estimator:
@@ -127,7 +131,7 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
             logger.info('Extension failed. Stopping now.')
             break
         extensions += 1
-        if not 'hierarchic' in extension_data:
+        if 'hierarchic' not in extension_data:
             logger.warn('Extension algorithm does not report if extension was hierarchic. Assuming it was\'nt ..')
             hierarchic = False
         else:
@@ -136,7 +140,7 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
         logger.info('')
 
         if max_extensions is not None and extensions >= max_extensions:
-            logger.info('Maximal number of {} extensions reached.'.format(max_extensions))
+            logger.info('Maximum number of {} extensions reached.'.format(max_extensions))
             logger.info('Reducing once more ...')
             rd, rc, reduction_data = reductor(discretization, basis) if not hierarchic \
                 else reductor(discretization, basis, extends=(rd, rc, reduction_data))
@@ -144,6 +148,6 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
 
     tictoc = time.time() - tic
     logger.info('Greedy search took {} seconds'.format(tictoc))
-    return {'basis': basis, 'reduced_discretization': rd, 'reconstructor': rc, 'max_err': max_err,
-            'max_err_mu': max_err_mu, 'max_errs': max_errs, 'max_err_mus': max_err_mus, 'extensions': extensions,
+    return {'basis': basis, 'reduced_discretization': rd, 'reconstructor': rc,
+            'max_errs': max_errs, 'max_err_mus': max_err_mus, 'extensions': extensions,
             'time': tictoc, 'reduction_data': reduction_data}

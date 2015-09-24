@@ -6,11 +6,12 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from pymor import defaults
+from pymor.core.defaults import defaults
 
 
-def float_cmp(x, y, rtol=None, atol=None):
-    '''Compare x and y component-wise for almost equality.
+@defaults('rtol', 'atol')
+def float_cmp(x, y, rtol=1e-14, atol=1e-14):
+    """Compare x and y component-wise for almost equality.
 
     For scalars we define almost equality as ::
 
@@ -28,23 +29,20 @@ def float_cmp(x, y, rtol=None, atol=None):
     x, y
         |NumPy arrays| to be compared. Have to be broadcastable to the same shape.
     rtol
-        The relative tolerance. If `None`, it is set to `float_cmp_tol`
-        |default| value.
+        The relative tolerance.
     atol
-        The absolute tolerance. If `None`, it is set to `rtol`.
-    '''
+        The absolute tolerance.
+    """
 
-    rtol = rtol or defaults.float_cmp_tol
-    atol = atol or rtol
     return np.abs(x - y) <= atol + np.abs(y) * rtol
 
 
 def float_cmp_all(x, y, rtol=None, atol=None):
-    '''Compare x and y for almost equality.
+    """Compare x and y for almost equality.
 
     Returns `True` if all components of `x` are almost equal to the corresponding
     components of `y`.
 
     See :meth:`float_cmp`.
-    '''
+    """
     return np.all(float_cmp(x, y, rtol, atol))

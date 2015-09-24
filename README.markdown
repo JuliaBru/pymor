@@ -13,13 +13,17 @@ computing stack are provided for getting started quickly.
 **NOTE** pyMOR is still in early development.  Should you have any questions
 regarding pyMOR or wish to contribute, do not hesitate to contact us!
 
+[![Docs](https://readthedocs.org/projects/pymor/badge/?version=latest)](http://pymor.readthedocs.org/en/latest)
+[![Docs](https://readthedocs.org/projects/pymor/badge/?version=0.3.x)](http://pymor.readthedocs.org/en/0.3.x)
+[![DOI](https://zenodo.org/badge/8838/pymor/pymor.svg)](http://dx.doi.org/10.5281/zenodo.15773)
 [![Build Status](https://travis-ci.org/pymor/pymor.png?branch=master)](https://travis-ci.org/pymor/pymor)
-
+[![Coverage Status](https://coveralls.io/repos/pymor/pymor/badge.png)](https://coveralls.io/r/pymor/pymor)
+[![Code Health](https://landscape.io/github/pymor/pymor/master/landscape.png)](https://landscape.io/github/pymor/pymor/master)
 
 License
 -------
 
-Copyright (c) 2013, 2014, Rene Milk, Stephan Rave, Felix Schindler
+Copyright (c) 2013, 2014, 2015, Rene Milk, Stephan Rave, Felix Schindler
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -42,16 +46,26 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+The following files contain source code originating from other open source software projects:
+
+* docs/source/pymordocstring.py  (sphinxcontrib-napoleon)
+* src/pymor/algorithms/genericsolvers.py (SciPy)
+
+See these files for more information.
+
 
 Distribution Packages
 ---------------------
 
-Packages for Ubuntu 12.04 and 13.10 are available via our
+Packages for Ubuntu are available via our
 [PPA](https://launchpad.net/~pymor/+archive/stable):
 
     sudo apt-add-repository ppa:pymor/stable
     sudo apt-get update
     sudo apt-get install python-pymor
+
+Daily snapshots are available via the 
+[pymor/daily PPA](https://launchpad.net/~pymor/+archive/daily).
 
 Demo applications and documentation are packaged separately:
 
@@ -108,14 +122,8 @@ pyMOR itself has been installed, so search at the top of your console
 log!) You will most likely want to install [IPython](http://www.ipython.org)
 and, in particular, [matplotlib](http://matplotlib.org),
 [PyOpenGL](http://pyopengl.sourceforge.net/),
-[glumpy](https://code.google.com/p/glumpy/),
 and [PySide](http://qt-project.org/wiki/PySide). The latter
-packages are required for pyMOR's visualization routines. At the time
-of writing, PySide fails to install with current Sphinx versions, so we
-have to install an old one:
-
-    pip install "sphinx==1.1.3"
-    pip install ipython pyside matplotlib pyopengl glumpy 
+packages are required for pyMOR's visualization routines.
 
 
 Documentation

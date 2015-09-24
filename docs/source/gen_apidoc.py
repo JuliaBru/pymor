@@ -1,3 +1,7 @@
+# This file is part of the pyMOR project (http://www.pymor.org).
+# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+
 from __future__ import print_function
 
 from types import FunctionType
@@ -25,7 +29,7 @@ def walk(module):
             modules.append(module.__name__ + '.' + modname)
     modules = sorted(modules)
     packages = sorted(packages)
-    with open('{}/{}.rst'.format(BUILD_DIR, module.__name__), 'wt') as f:
+    with open('{}/{}.rst'.format(BUILD_DIR, module.__name__), 'wb') as f:
         print(section('{} package'.format(module.__name__)), file=f)
 
         print('.. automodule:: ' + module.__name__, file=f)

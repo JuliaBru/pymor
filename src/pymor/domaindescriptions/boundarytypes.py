@@ -4,11 +4,11 @@
 
 from __future__ import absolute_import, division, print_function
 
-from pymor.core import ImmutableInterface
+from pymor.core.interfaces import ImmutableInterface
 
 
 class BoundaryType(ImmutableInterface):
-    '''Represents a boundary type, i.e. Dirichlet, Neumann, etc.
+    """Represents a boundary type, i.e. Dirichlet, Neumann, etc.
 
     By defining a global registry of possible boundary types, we prevent hard
     to track down errors due to typos. Only boundary types that have been
@@ -26,37 +26,37 @@ class BoundaryType(ImmutableInterface):
     ----------
     types
         Set of the names of registered boundary types.
-    '''
+    """
 
-    types = set(('dirichlet', 'neumann', 'robin'))
+    types = {'dirichlet', 'neumann', 'robin'}
 
     @classmethod
     def register_type(cls, name):
-        '''Register a new |BoundaryType| with name `name`.'''
+        """Register a new |BoundaryType| with name `name`."""
         assert isinstance(name, str)
         cls.types.add(name)
 
     def __init__(self, type_):
         assert type_ in self.types, '{} is not a known boundary type. Use BoundaryType.register to add it'.format(type_)
-        self.name = type_
+        self.name = self.type = type_
 
     def __str__(self):
-        return self.name
+        return self.type
 
     def __repr__(self):
-        return "BoundaryType('{}')".format(self.name)
+        return "BoundaryType('{}')".format(self.type)
 
     def __eq__(self, other):
         if isinstance(other, BoundaryType):
-            return self.name == other.name
+            return self.type == other.type
         else:
             return NotImplemented
 
     def __ne__(self, other):
         if isinstance(other, BoundaryType):
-            return self.name != other.name
+            return self.type != other.type
         else:
             return NotImplemented
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.type)

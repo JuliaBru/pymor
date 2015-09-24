@@ -24,7 +24,7 @@ if os.environ.get('READTHEDOCS', None) == 'True':
             if name in ('__file__', '__path__'):
                 return '/dev/null'
             elif name in cls.__dict__:
-                return cls.__dict.get(name)
+                return cls.__dict__.get(name)
             elif name == 'QtGui':
                 return Mock()
             elif name[0] == name[0].upper():
@@ -36,13 +36,11 @@ if os.environ.get('READTHEDOCS', None) == 'True':
 
         QWidget = object
 
-    MOCK_MODULES = ['scipy', 'scipy.sparse', 'scipy.linalg', 'scipy.sparse.linalg', 'scipy.io',
-                    'contracts',
+    MOCK_MODULES = ['scipy', 'scipy.sparse', 'scipy.linalg', 'scipy.sparse.linalg', 'scipy.io', 'scipy.version',
                     'docopt',
                     'dogpile', 'dogpile.cache', 'dogpile.cache.backends', 'dogpile.cache.backends.file',
                     'dogpile.cache.compat',
                     'PySide', 'PySide.QtGui', 'PySide.QtCore', 'PySide.QtOpenGL',
-                    'glumpy', 'glumpy.graphics', 'glumpy.graphics.vertex_buffer',
                     'OpenGL', 'OpenGL.GL',
                     'matplotlib', 'matplotlib.backends', 'matplotlib.backends.backend_qt4agg', 'matplotlib.figure',
                     'matplotlib.pyplot',
@@ -102,13 +100,11 @@ master_doc = 'index'
 
 # General substitutions.
 project = 'pyMOR'
-copyright = '2012-2013, the pyMOR AUTHORS'
+copyright = '2012-2015, the pyMOR AUTHORS'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
 #
-import pymor
-
 version = str(pymor.version)
 
 # The full version, including alpha/beta/rc tags.

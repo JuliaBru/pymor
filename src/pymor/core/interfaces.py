@@ -3,7 +3,7 @@
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
-'''This module provides base classes from which most classes in pyMOR inherit.
+"""This module provides base classes from which most classes in pyMOR inherit.
 
 The purpose of these classes is to provide some common functionality for
 all objects in pyMOR. The most notable features provided by :class:`BasicInterface`
@@ -50,99 +50,78 @@ are the following:
              are taken from the corresponding instance attributes.
 
     6. :meth:`BasicInterface.uid` provides a unique id for each instance. While
-       `id(obj)` is only guaranteed to be unique among all living python objects,
+       `id(obj)` is only guaranteed to be unique among all living Python objects,
        :meth:`BasicInterface.uid` will be (almost) unique among all pyMOR objects
        that have ever existed, including previous runs of the application. This
        is achieved by building the id from a uuid4 which is newly created for
        each pyMOR run and a counter which is increased for any object that requests
-       an uid. This functionality is implemented using the :class:`UIDProvider`
-       instance :attr:`uid_provider`.
+       an uid.
+    7. If not set by the user to another value, :attr:`BasicInterface.name` is
+       generated from the class name and the :meth:`~BasicInterface.uid` of the
+       instance.
 
 
-:class:`ImmutableMeta` derives from :class:`BasicInterface` and adds the following
+:class:`ImmutableInterface` derives from :class:`BasicInterface` and adds the following
 functionality:
 
     1. Using more metaclass magic, each instance which derives from
        :class:`ImmutableInterface` is locked after its `__init__` method has returned.
-    2. If possible, a unique _`state id` for the instance is calculated and stored as
-       `sid` attribute. If sid calculation fails, `sid_failure` is set to a string
-       giving a reason for the failure.
-
-       The sid is constructed as a tuple containing:
-
-           - the class of the instance
-           - for each `__init__` argument its name and
-
-               - its `sid` if it has one
-               - its value if it is an instance of `NoneType`, `str`, `int`, `float` or `bool`
-               - its value if it is a numpy array of short size
-
-             For `tuple`, `list` or `dict` instance, the calculation is done by recursion.
-             If none of these cases apply, sid calculation fails.
-
-       Note that a sid contains only object references to the sids of the provided `__init__`
-       arguments. This structure is preserved by pickling resulting in relatively short
-       string represenations of the sid.
-    3. :attr:`ImmutableInterface.sid_ignore` can be set to a tuple of `__init__`
-       argument names, which should be excluded from sid calculation.
-    4. sid generation (with all its overhead) can be disabled by setting
-       :attr:`ImmutableInterface.calculate_sid` to `False`.
-    5. sid generation can be disabled completely in pyMOR by calling
-       :func:`disable_sid_generation`. It can be activated again by calling
-       :func:`enable_sid_generation`.
-'''
+    2. A unique _`state id` for the instance can be calculated by calling
+       :meth:`~ImmutableInterface.generate_sid` and is then stored as `sid` attribute.
+       The state id is obtained by deterministically serializing the object's state
+       and then computing a checksum of the resulting byte stream.
+    3. :attr:`ImmutableInterface.sid_ignore` can be set to a set of attribute names
+       which should be excluded from sid calculation.
+"""
 
 from __future__ import absolute_import, division, print_function
 import abc
+from cPickle import dumps
+from copy_reg import dispatch_table
+import hashlib
 import inspect
 import itertools
 import os
-import types
-from types import NoneType
-
-try:
-    import contracts
-    HAVE_CONTRACTS = True
-except ImportError:
-    HAVE_CONTRACTS = False
+import time
+from types import FunctionType, BuiltinFunctionType, NoneType
+import uuid
 
 import numpy as np
 
 from pymor.core import decorators, backports, logger
-from pymor.core.exceptions import ConstError
+from pymor.core.exceptions import ConstError, SIDGenerationError
 
 DONT_COPY_DOCSTRINGS = int(os.environ.get('PYMOR_COPY_DOCSTRINGS_DISABLE', 0)) == 1
 
 
-class UIDProvider(object):
+class UID(object):
     '''Provides unique, quickly computed ids by combinding a session UUID4 with a counter.'''
+
+    __slots__ = ['uid']
+
+    prefix = '{}_'.format(uuid.uuid4())
+    counter = [0]
+
     def __init__(self):
-        self.counter = 0
-        import uuid
-        self.prefix = '{}_'.format(uuid.uuid4())
+        self.uid = self.prefix + str(self.counter[0])
+        self.counter[0] += 1
 
-    def __call__(self):
-        uid = self.prefix + str(self.counter)
-        self.counter += 1
-        return uid
+    def __getstate__(self):
+        return 1
 
-uid_provider = UIDProvider()
+    def __setstate__(self, v):
+        self.uid = self.prefix + str(self.counter[0])
+        self.counter[0] += 1
 
 
 class UberMeta(abc.ABCMeta):
 
     def __init__(cls, name, bases, namespace):
-        '''Metaclass of :class:`BasicInterface`.
+        """Metaclass of :class:`BasicInterface`.
 
-        I tell base classes when I derive a new class from them. I publish
-        a new contract type for each new class I create. I create a logger
+        I tell base classes when I derive a new class from them. I create a logger
         for each class I create. I add an `init_args` attribute to the class.
-        '''
-        # monkey a new contract into the decorator module so checking for that type at runtime can work
-        if HAVE_CONTRACTS:
-            dname = (cls.__module__ + '.' + name).replace('__main__.', 'main.').replace('.', '_')
-            if not dname in decorators.__dict__:
-                decorators.__dict__[dname] = contracts.new_contract(dname, lambda x: isinstance(x, cls))
+        """
 
         # all bases except object get the derived class' name appended
         for base in [b for b in bases if b != object]:
@@ -157,49 +136,32 @@ class UberMeta(abc.ABCMeta):
         abc.ABCMeta.__init__(cls, name, bases, namespace)
 
     def __new__(cls, classname, bases, classdict):
-        '''I copy contract decorations and docstrings from base class methods to deriving classes.
+        """I copy docstrings from base class methods to deriving classes.
         I also forward "abstract{class|static}method" decorations in the base class to "{class|static}method"
         decorations in the new subclass.
 
         Copying of docstrings can be prevented by setting the `PYMOR_COPY_DOCSTRINGS_DISABLE` environment
         variable to `1`.
-        '''
-        if 'init_arguments' in classdict:
-            raise ValueError('init_arguments is a reserved class attribute for subclasses of BasicInterface')
+        """
+        for attr in ('_init_arguments', '_init_defaults'):
+            if attr in classdict:
+                raise ValueError(attr + ' is a reserved class attribute for subclasses of BasicInterface')
 
         for attr, item in classdict.items():
-            if isinstance(item, types.FunctionType):
+            if isinstance(item, FunctionType):
                 # first copy/fixup docs
                 item.__doc__ = decorators.fixup_docstring(item.__doc__)
                 base_doc = None
-                contract_kwargs = dict()
                 for base in bases:
                     base_func = getattr(base, item.__name__, None)
                     if not DONT_COPY_DOCSTRINGS:
-                        has_contract = False
                         if base_func:
                             base_doc = getattr(base_func, '__doc__', None)
-                            if HAVE_CONTRACTS:
-                                has_contract = getattr(base_func, 'decorated', None) == 'contract'
-                                contract_kwargs = getattr(base_func, 'contract_kwargs', contract_kwargs)
                         if base_doc:
                             doc = decorators.fixup_docstring(getattr(item, '__doc__', ''))
-                            if HAVE_CONTRACTS:
-                                has_base_contract_docs = decorators.contains_contract(base_doc)
-                                has_contract_docs = decorators.contains_contract(doc)
-                                if has_base_contract_docs and not has_contract_docs:
-                                    base_doc += doc
-                                elif not has_base_contract_docs and doc is not None:
-                                    base_doc = doc
-                            elif doc is not None:
+                            if doc is not None:
                                 base_doc = doc
                             item.__doc__ = base_doc
-                        if has_contract:
-                            # TODO why is the rebind necessary?
-                            classdict['_H_%s' % attr] = item
-                            contract_kwargs = contract_kwargs or dict()
-                            p = decorators.contracts_decorate(item, modify_docstring=True, **contract_kwargs)
-                            classdict[attr] = p
                     if (hasattr(base_func, "__isabstractstaticmethod__") and
                             getattr(base_func, "__isabstractstaticmethod__")):
                         classdict[attr] = staticmethod(classdict[attr])
@@ -213,45 +175,48 @@ class UberMeta(abc.ABCMeta):
         # keyword-only arguemnts
         try:
             args, varargs, keywords, defaults = inspect.getargspec(c.__init__)
-            if varargs:
-                raise NotImplementedError
             assert args[0] == 'self'
-            c.init_arguments = tuple(args[1:])
+            c._init_arguments = tuple(args[1:])
+            if defaults:
+                c._init_defaults = dict(zip(args[-len(defaults):], defaults))
+            else:
+                c._init_defaults = dict()
         except TypeError:       # happens when no one declares an __init__ method and object is reached
-            c.init_arguments = tuple()
+            c._init_arguments = tuple()
+            c._init_defaults = dict()
         return c
 
 
 class BasicInterface(object):
-    '''Base class for most classes in pyMOR.
+    """Base class for most classes in pyMOR.
 
     Attributes
     ----------
-    init_arguments
-        The list of arguments accepted by `__init__` in their specified
-        order.
     locked
-        True if the instance is made immutable using `lock`.
+        `True` if the instance is made immutable using `lock`.
     logger
         A per-class instance of :class:`logging.Logger` with the class
         name as prefix.
     logging_disabled
         `True` if logging has been disabled.
+    name
+        The name of the instance. If not set by the user, the name is
+        generated from the class name and the `uid` of the instance.
     uid
         A unique id for each instance. The uid is obtained by using
         :class:`UIDProvider` and should be unique for all pyMOR objects
         ever created.
     with_arguments
         Set of allowed keyword arguments for `with_`.
-    '''
+    """
 
     __metaclass__ = UberMeta
     _locked = False
 
     def __setattr__(self, key, value):
-        '''depending on _locked state I delegate the setattr call to object or
+        """depending on _locked state I delegate the setattr call to object or
         raise an Exception
-        '''
+        """
         if not self._locked or key[0] == '_':
             return object.__setattr__(self, key, value)
         else:
@@ -262,21 +227,30 @@ class BasicInterface(object):
         return self._locked
 
     def lock(self, doit=True):
-        '''Make the instance immutable.
+        """Make the instance immutable.
 
         Trying to change an attribute after locking raises a `ConstError`.
         Private attributes (of the form `_attribute`) are exempted from
         this rule.
-        '''
+        """
         object.__setattr__(self, '_locked', doit)
 
     def unlock(self):
-        '''Make the instance mutable again, after it has been locked using `lock`.'''
+        """Make the instance mutable again, after it has been locked using `lock`."""
         object.__setattr__(self, '_locked', False)
 
     @property
+    def name(self):
+        n = getattr(self, '_name', None)
+        return n or '{}_{}'.format(type(self).__name__, self.uid)
+
+    @name.setter
+    def name(self, n):
+        self._name = n
+
+    @property
     def with_arguments(self):
-        init_arguments = self.init_arguments
+        init_arguments = self._init_arguments
         for arg in init_arguments:
             if not hasattr(self, arg):
                 self._with_arguments_error = "Instance does not have attribute for __init__ argument '{}'".format(arg)
@@ -284,7 +258,7 @@ class BasicInterface(object):
         return set(init_arguments)
 
     def with_(self, **kwargs):
-        '''Returns a copy with changed attributes.
+        """Returns a copy with changed attributes.
 
         The default implementation is to call `_with_via_init(**kwargs)`.
 
@@ -297,7 +271,7 @@ class BasicInterface(object):
         Returns
         -------
         Copy of `self` with changed attributes.
-        '''
+        """
         with_arguments = self.with_arguments      # ensure that property is called first
         if hasattr(self, '_with_arguments_error'):
             raise ConstError('Using with_ is not possible because of the following Error: '
@@ -308,15 +282,15 @@ class BasicInterface(object):
         return self._with_via_init(kwargs)
 
     def _with_via_init(self, kwargs, new_class=None):
-        '''Default implementation for with_ by calling __init__.
+        """Default implementation for with_ by calling __init__.
 
         Parameters which are missing in `kwargs` are taken from the dictionary of the
         instance. If `new_class` is provided, the copy is created as an instance of
         `new_class`.
-        '''
+        """
         my_type = type(self) if new_class is None else new_class
         init_args = kwargs
-        for arg in my_type.init_arguments:
+        for arg in my_type._init_arguments:
             if arg not in init_args:
                 init_args[arg] = getattr(self, arg)
         c = my_type(**init_args)
@@ -327,7 +301,7 @@ class BasicInterface(object):
     _added_attributes = None
 
     def add_attributes(self, **kwargs):
-        '''Add attributes to a locked instance.'''
+        """Add attributes to a locked instance."""
         assert not any(hasattr(self, k) for k in kwargs)
         self.__dict__.update(kwargs)
         if self._added_attributes is None:
@@ -344,21 +318,21 @@ class BasicInterface(object):
         return self._logger
 
     def disable_logging(self, doit=True):
-        '''Disable logging output for this instance.'''
+        """Disable logging output for this instance."""
         if doit:
             self._logger = logger.dummy_logger
         else:
-            self._logger = type(self)._logger
+            del self._logger
 
     def enable_logging(self, doit=True):
-        '''Enable logging output for this instance.'''
+        """Enable logging output for this instance."""
         self.disable_logging(not doit)
 
     @classmethod
     def implementors(cls, descend=False):
-        '''I return a, potentially empty, list of my subclass-objects.
+        """I return a, potentially empty, list of my subclass-objects.
         If descend is True I traverse my entire subclass hierarchy and return a flattened list.
-        '''
+        """
         if not hasattr(cls, '_%s__implementors' % cls.__name__):
             return []
         level = getattr(cls, '_%s__implementors' % cls.__name__)
@@ -370,12 +344,12 @@ class BasicInterface(object):
 
     @classmethod
     def implementor_names(cls, descend=False):
-        '''For convenience I return a list of my implementor names instead of class objects'''
+        """For convenience I return a list of my implementor names instead of class objects"""
         return [c.__name__ for c in cls.implementors(descend)]
 
     @classmethod
     def has_interface_name(cls):
-        '''`True` if the class name ends with `Interface`. Used for introspection.'''
+        """`True` if the class name ends with `Interface`. Used for introspection."""
         name = cls.__name__
         return name.endswith('Interface')
 
@@ -384,11 +358,10 @@ class BasicInterface(object):
     @property
     def uid(self):
         if self._uid is None:
-            self._uid = uid_provider()
-        return self._uid
+            self._uid = UID()
+        return self._uid.uid
 
 
-contract = decorators.contract
 abstractmethod = abc.abstractmethod
 abstractproperty = abc.abstractproperty
 
@@ -403,9 +376,9 @@ else:
 
 
 class abstractclassmethod(abstractclassmethod_base):
-    '''I mark my wrapped function with an additional __isabstractclassmethod__ member,
+    """I mark my wrapped function with an additional __isabstractclassmethod__ member,
     where my abstractclassmethod_base sets __isabstractmethod__ = True.
-    '''
+    """
 
     def __init__(self, callable_method):
         callable_method.__isabstractclassmethod__ = True
@@ -413,115 +386,34 @@ class abstractclassmethod(abstractclassmethod_base):
 
 
 class abstractstaticmethod(abstractstaticmethod_base):
-    '''I mark my wrapped function with an additional __isabstractstaticmethod__ member,
+    """I mark my wrapped function with an additional __isabstractstaticmethod__ member,
     where my abstractclassmethod_base sets __isabstractmethod__ = True.
-    '''
+    """
 
     def __init__(self, callable_method):
         callable_method.__isabstractstaticmethod__ = True
         super(abstractstaticmethod, self).__init__(callable_method)
 
 
-def _calculate_sid(obj, name):
-    if hasattr(obj, 'sid'):
-        return obj.sid
-    else:
-        t_obj = type(obj)
-        if t_obj in (tuple, list):
-            return tuple(_calculate_sid(o, '{}[{}]'.format(name, i)) for i, o in enumerate(obj))
-        elif t_obj is dict:
-            return tuple((k, _calculate_sid(v, '{}[{}]'.format(name, k))) for k, v in sorted(obj.iteritems()))
-        elif t_obj in (NoneType, str, int, float, bool):
-            return obj
-        elif t_obj is np.ndarray:
-            if obj.size < 64:
-                return ('array', obj.shape, obj.dtype.str, obj.tostring())
-            else:
-                raise ValueError('sid calculation faild at large numpy array {}'.format(name))
-        else:
-            raise ValueError('sid calculation failed at {}={}'.format(name, type(obj)))
-
-
-def inject_sid(obj, context, *args):
-    '''Add a state id sid to an object.
-
-    The purpose of this methods is to inject state ids into objects which do not
-    derive from :class:`ImmutableInterface`. If `obj` is an instance of
-    :class:`BasicInterface`, it is locked, if it is an :class:`numpy.ndarray`,
-    its `writable` flag is set to `False`.
-
-    It is the callers responsibility to ensure that the given parameters uniquely
-    describe the state of `obj`, and that `obj` does not change its state after
-    the call of `inject_sid`. For an example see
-    :class:`pymor.analyticalproblems.EllipticProblem`.
-
-    Parameters
-    ----------
-    obj
-        The object which shall obtain a sid.
-    context
-        A hashable, picklable, immutable object, describing the context in
-        which `obj` was created.
-    `*args`
-        List of parameters which in the given context led to the creation of
-        `obj`.
-    '''
-    try:
-        sid = tuple((context, tuple(_calculate_sid(o, i) for i, o in enumerate(args))))
-        obj.sid = sid
-        ImmutableMeta.sids_created += 1
-    except ValueError as e:
-        obj.sid_failure = str(e)
-
-    if isinstance(obj, BasicInterface):
-        obj.lock()
-    elif isinstance(obj, np.ndarray):
-        obj.flags.writable = False
-
-
-def disable_sid_generation():
-    '''Globally disable the generation of state ids.'''
-    if hasattr(ImmutableMeta, '__call__'):
-        del ImmutableMeta.__call__
-
-
-def enable_sid_generation():
-    '''Globally enable the generation of state ids.'''
-    ImmutableMeta.__call__ = ImmutableMeta._call
-
-
 class ImmutableMeta(UberMeta):
-    '''Metaclass for :class:`ImmutableInterface`.'''
-
-    sids_created = 0
-    init_arguments_never_warn = ('name', 'cache_region')
+    """Metaclass for :class:`ImmutableInterface`."""
 
     def __new__(cls, classname, bases, classdict):
+
+        # Ensure that '_sid_contains_cycles' and 'sid' are contained in sid_ignore.
+        # Otherwise sids of objects in reference cycles may depend on the order in which
+        # generate_sid is called upon these objects.
+        if 'sid_ignore' in classdict:
+            classdict['sid_ignore'] = classdict['sid_ignore'] | {'_sid_contains_cycles', 'sid'}
+
         c = UberMeta.__new__(cls, classname, bases, classdict)
-        init_arguments = c.init_arguments
-        try:
-            for a in c.sid_ignore:
-                if a not in init_arguments and a not in ImmutableMeta.init_arguments_never_warn:
-                    raise ValueError(a)
-        except ValueError as e:
-            c._logger.warn('sid_ignore contains "{}" which is not an __init__ argument!'.format(e))
+
+        c._implements_reduce = ('__reduce__' in classdict
+                                or any(getattr(base, '_implements_reduce', False) for base in bases))
         return c
 
     def _call(self, *args, **kwargs):
         instance = super(ImmutableMeta, self).__call__(*args, **kwargs)
-        if instance.calculate_sid:
-            try:
-                kwargs.update((k, o) for k, o in itertools.izip(instance.init_arguments, args))
-                kwarg_sids = tuple((k, _calculate_sid(o, k))
-                                   for k, o in sorted(kwargs.iteritems())
-                                   if k not in instance.sid_ignore)
-                instance.sid = (type(instance), kwarg_sids)
-                ImmutableMeta.sids_created += 1
-            except ValueError as e:
-                instance.sid_failure = str(e)
-        else:
-            instance.sid_failure = 'disabled'
-
         instance._locked = True
         return instance
 
@@ -529,45 +421,51 @@ class ImmutableMeta(UberMeta):
 
 
 class ImmutableInterface(BasicInterface):
-    '''Base class for immutable objects in pyMOR.
+    """Base class for immutable objects in pyMOR.
 
-    Instances of `ImmutableInterface` are immutable in the sense, that
-    they are :meth:`BasicInterface.lock`ed after `__init__` returns.
+    Instances of `ImmutableInterface` are immutable in the sense that
+    they are :meth:`locked <BasicInterface.lock>` after `__init__` returns.
+
+    .. _ImmutableInterfaceWarning:
+    .. warning::
+       For instances of `ImmutableInterface`, the following should always
+       be true ::
+
+           The result of any member function call is determined by the
+           function's arguments together with the state id of the
+           corresponding instance and the current state of pyMOR's
+           global defaults.
+
+       While, in principle, you are allowed to modify private members after
+       instance initialization, this should never affect the outcome of
+       future method calls. In particular, if you update any internal state
+       after initialization, you have to ensure that this state is not affecteed
+       by possible changes of the global :mod:`~pymor.core.defaults`.
+
+       Also note that mutable private attributes will cause false cache
+       misses when these attributes enter |state id| calculation. If your
+       implementation uses such attributes, you should therefore add their
+       names to the :attr:`~ImmutableInterface.sid_ignore` set.
 
     Attributes
     ----------
-    calculate_sid
-        If `True`, a unique id describing the state of the instance is
-        calculated after __init__ returns, based on the states of the
-        provided arguments. For further details see
-        :mod:`pymor.core.interfaces`.
     sid
-        The objects state id. If sid generation is disabled or fails,
-        this attribute is not set.
-    sid_failure
-        If sid generation fails, a string describing the reason for
-        the failure.
+        The objects state id. Only avilable after
+        :meth:`~ImmutableInterface.generate_sid` has been called.
     sid_ignore
-        Tuple of `__init__` arguments not to include in sid calculation.
-        The default it `{'name', 'cache_region'}`
-    '''
+        Set of attributes not to include in sid calculation.
+    """
     __metaclass__ = ImmutableMeta
-    calculate_sid = True
-    sid_ignore = frozenset({'name', 'cache_region'})
+    sid_ignore = frozenset({'_locked', '_logger', '_name', '_uid', '_sid_contains_cycles',
+                            '_with_arguments_error', 'sid'})
 
     # Unlocking an immutable object will result in the deletion of its sid.
     # However, this will not delete the sids of objects referencing it.
     # You really should not unlock an object unless you really know what
     # you are doing. (One exception might be the modification of a newly
     # created copy of an immutable object.)
-    def lock(self, doit=True):
-        super(ImmutableInterface, self).lock(doit)
-        if not self.locked and hasattr(self, 'sid'):
-            del self.sid
-            self.sid_failure = 'unlocked'
-
     def unlock(self):
-        '''Make the instance mutable.
+        """Make the instance mutable.
 
         .. warning::
             Unlocking an instance of :class:`ImmutableInterface` will result in the
@@ -575,8 +473,205 @@ class ImmutableInterface(BasicInterface):
             objects referencing it. You really should not unlock an object
             unless you really know what you are doing. (One exception might
             be the modification of a newly created copy of an immutable object.)
-        '''
+        """
         super(ImmutableInterface, self).unlock()
         if hasattr(self, 'sid'):
             del self.sid
-            self.sid_failure = 'unlocked'
+
+    def generate_sid(self, debug=False):
+        """Generate a unique |state id| for the given object.
+
+        The generated sid is stored in the object's `sid` attribute.
+
+        Parameters
+        ----------
+        debug
+            If `True`, produce some debug output.
+
+        Returns
+        -------
+        The generated sid.
+        """
+        if hasattr(self, 'sid'):
+            return self.sid
+        else:
+            return self._generate_sid(debug, tuple())
+
+    def _generate_sid(self, debug, seen_immutables):
+        sid_generator = _SIDGenerator()
+        sid, has_cycles = sid_generator.generate(self, debug, seen_immutables)
+        self.__dict__['sid'] = sid
+        self.__dict__['_sid_contains_cycles'] = has_cycles
+        return sid
+
+
+def generate_sid(obj, debug=False):
+    """Generate a unique |state id| (sid) for the current state of the given object.
+
+    Parameters
+    ----------
+    obj
+        The object for which to compute the state sid.
+    debug
+        If `True`, produce some debug output.
+
+    Returns
+    -------
+    The generated state id.
+    """
+    sid_generator = _SIDGenerator()
+    return sid_generator.generate(obj, debug, tuple())[0]
+
+
+# Helper classes for generate_sid
+
+
+class _SIDGenerator(object):
+
+    def __init__(self):
+        self.memo = {}
+        self.logger = logger.getLogger('pymor.core.interfaces')
+
+    def generate(self, obj, debug, seen_immutables):
+        start = time.time()
+
+        self.has_cycles = False
+        self.seen_immutables = seen_immutables + (id(obj),)
+        self.debug = debug
+        state = self.deterministic_state(obj, first_obj=True)
+
+        if debug:
+            print('-' * 100)
+            print('Deterministic state for ' + obj.name)
+            print('-' * 100)
+            print()
+            import pprint
+            pprint.pprint(state, indent=4)
+            print()
+
+        sid = hashlib.sha256(dumps(state, protocol=-1)).hexdigest()
+
+        if debug:
+            print('SID: {}, reference cycles: {}'.format(sid, self.has_cycles))
+            print()
+            print()
+
+        name = getattr(obj, 'name', None)
+        if name:
+            self.logger.debug('{}: SID generation took {} seconds'.format(name, time.time() - start))
+        else:
+            self.logger.debug('SID generation took {} seconds'.format(time.time() - start))
+        return sid, self.has_cycles
+
+    def deterministic_state(self, obj, first_obj=False):
+        v = self.memo.get(id(obj))
+        if v:
+            return(v)
+
+        t = type(obj)
+        if t in (NoneType, bool, int, long, float, FunctionType, BuiltinFunctionType, type):
+            return obj
+
+        self.memo[id(obj)] = _MemoKey(len(self.memo), obj)
+
+        if t in (str, unicode):
+            return obj
+
+        if t is np.ndarray and t.dtype != object:
+            return obj
+
+        if t is tuple:
+            return (tuple,) + tuple(self.deterministic_state(x) for x in obj)
+
+        if t is list:
+            return [self.deterministic_state(x) for x in obj]
+
+        if t in (set, frozenset):
+            return (t,) + tuple(self.deterministic_state(x) for x in sorted(obj))
+
+        if t is dict:
+            return (dict,) + tuple((k, self.deterministic_state(v)) for k, v in sorted(obj.iteritems()))
+
+        if issubclass(t, ImmutableInterface):
+            if hasattr(obj, 'sid') and not obj._sid_contains_cycles:
+                return (t, obj.sid)
+
+            if not first_obj:
+                if id(obj) in self.seen_immutables:
+                    raise _SIDGenerationRecursionError
+                try:
+                    obj._generate_sid(self.debug, self.seen_immutables)
+                    return (t, obj.sid)
+                except _SIDGenerationRecursionError:
+                    self.has_cycles = True
+                    self.logger.debug('{}: contains cycles of immutable objects, consider refactoring'.format(obj.name))
+
+            if obj._implements_reduce:
+                self.logger.debug('{}: __reduce__ is implemented, not using sid_ignore'.format(obj.name))
+                return self.handle_reduce_value(obj, t, obj.__reduce__(), first_obj)
+            else:
+                try:
+                    state = obj.__getstate__()
+                except AttributeError:
+                    state = obj.__dict__
+                state = {k: v for k, v in state.iteritems() if k not in obj.sid_ignore}
+                return self.deterministic_state(state) if first_obj else (t, self.deterministic_state(state))
+
+        sid = getattr(obj, 'sid', None)
+        if sid:
+            return sid if first_obj else (t, sid)
+
+        reduce = dispatch_table.get(t)
+        if reduce:
+            rv = reduce(obj)
+        else:
+            if issubclass(t, type):
+                return obj
+
+            reduce = getattr(obj, '__reduce_ex__', None)
+            if reduce:
+                rv = reduce(2)
+            else:
+                reduce = getattr(obj, '__reduce__', None)
+                if reduce:
+                    rv = reduce()
+                else:
+                    raise SIDGenerationError('Cannot handle {} of type {}'.format(obj, t.__name__))
+
+        return self.handle_reduce_value(obj, t, rv, first_obj)
+
+    def handle_reduce_value(self, obj, t, rv, first_obj):
+        if type(rv) is str:
+            raise SIDGenerationError('__reduce__ methods returning a string are currently not handled '
+                                     + '(object {} of type {})'.format(obj, t.__name__))
+
+        if type(rv) is not tuple or not (2 <= len(rv) <= 5):
+            raise SIDGenerationError('__reduce__ return value malformed '
+                                     + '(object {} of type {})'.format(obj, t.__name__))
+
+        rv = rv + (None,) * (5 - len(rv))
+        func, args, state, listitems, dictitems = rv
+
+        state = (func,
+                 tuple(self.deterministic_state(x) for x in args),
+                 self.deterministic_state(state),
+                 self.deterministic_state(tuple(listitems)) if listitems is not None else None,
+                 self.deterministic_state(sorted(dictitems)) if dictitems is not None else None)
+
+        return state if first_obj else (t,) + state
+
+
+class _MemoKey(object):
+    def __init__(self, key, obj):
+        self.key = key
+        self.obj = obj
+
+    def __repr__(self):
+        return '_MemoKey({}, {})'.format(self.key, repr(self.obj))
+
+    def __getstate__(self):
+        return self.key
+
+
+class _SIDGenerationRecursionError(Exception):
+    pass

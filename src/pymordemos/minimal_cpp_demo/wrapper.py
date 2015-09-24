@@ -1,8 +1,13 @@
+# This file is part of the pyMOR project (http://www.pymor.org).
+# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+
 from __future__ import absolute_import, division, print_function
 
-from pymor.la.listvectorarray import VectorInterface, ListVectorArray
-from pymor import defaults
+from pymor.core.defaults import defaults
 from pymor.operators.basic import OperatorBase
+from pymor.vectorarrays.interfaces import VectorSpace
+from pymor.vectorarrays.list import VectorInterface, ListVectorArray
 
 import numpy as np
 import math as m
@@ -16,13 +21,12 @@ class WrappedVector(VectorInterface):
         self._impl = vector
 
     @classmethod
-    def zeros(cls, dim):
-        return cls(Vector(dim, 0))
+    def make_zeros(cls, subtype):
+        return cls(Vector(subtype, 0))
 
-    # naming is consistent with numpy.full in numpy >= 1.8.0
-    @classmethod
-    def full(cls, dim, value):
-        return cls(Vector(dim, value))
+    @property
+    def subtype(self):
+        return self._impl.dim
 
     @property
     def dim(self):
@@ -35,9 +39,8 @@ class WrappedVector(VectorInterface):
     def copy(self):
         return type(self)(Vector(self._impl))
 
-    def almost_equal(self, other, rtol=None, atol=None):
-        rtol = rtol if rtol is not None else defaults.float_cmp_tol
-        atol = atol or rtol
+    @defaults('rtol', 'atol', qualname='wrapper.WrappedVector.almost_equal')
+    def almost_equal(self, other, rtol=1e-10, atol=1e-10):
         return self._impl.almost_equal(other._impl, rtol, atol)
 
     def scal(self, alpha):
@@ -65,17 +68,12 @@ class WrappedVector(VectorInterface):
         raise NotImplementedError
 
 
-class WrappedVectorArray(ListVectorArray):
-    vector_type = WrappedVector
-
-
 class WrappedDiffusionOperator(OperatorBase):
     def __init__(self, op):
         assert isinstance(op, DiffusionOperator)
         self._impl = op
-        self.dim_source = op.dim_source
-        self.dim_range = op.dim_range
-        self.type_range = self.type_source = WrappedVectorArray
+        self.source = VectorSpace(ListVectorArray, (WrappedVector, op.dim_source))
+        self.range = VectorSpace(ListVectorArray, (WrappedVector, op.dim_range))
         self.linear = True
 
     @classmethod
@@ -83,14 +81,14 @@ class WrappedDiffusionOperator(OperatorBase):
         return cls(DiffusionOperator(n, left, right))
 
     def apply(self, U, ind=None, mu=None):
-        assert self.check_parameter(mu)
+        assert U in self.source
 
         if ind is None:
             ind = xrange(len(U))
 
         def apply_one_vector(u):
-            v = Vector(self.dim_range, 0)
+            v = Vector(self.range.dim, 0)
             self._impl.apply(u._impl, v)
             return WrappedVector(v)
 
-        return WrappedVectorArray([apply_one_vector(U._list[i]) for i in ind], dim=self.dim_range)
+        return ListVectorArray([apply_one_vector(U._list[i]) for i in ind], subtype=self.range.subtype)

@@ -2,11 +2,13 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Contributors: Michael Laier <m_laie01@uni-muenster.de>
 
-'''Thermalblock with GUI demo
+"""Thermalblock with GUI demo
 
 Usage:
-  thermalblock_gui.py [-h] [--estimator-norm=NORM] [--grid=NI]
+  thermalblock_gui.py [-h] [--estimator-norm=NORM] [--grid=NI] [--testing]
                   [--help] XBLOCKS YBLOCKS SNAPSHOTS RBSIZE
 
 
@@ -23,34 +25,33 @@ Arguments:
 
 Options:
   --estimator-norm=NORM  Norm (trivial, h1) in which to calculate the residual
-                         [default: trivial].
+                         [default: h1].
 
   --grid=NI              Use grid with 2*NI*NI elements [default: 60].
 
+  --testing              load the gui and exit right away (for functional testing)
+
   -h, --help             Show this message.
-'''
+"""
 
 from __future__ import absolute_import, division, print_function
 import sys
 from docopt import docopt
 import time
 from functools import partial
-import math as m
 import numpy as np
 from PySide import QtGui
 import OpenGL
+
 OpenGL.ERROR_ON_COPY = True
 
-import pymor.core as core
-core.logger.MAX_HIERACHY_LEVEL = 2
-from pymor.algorithms import greedy, gram_schmidt_basis_extension
-from pymor.analyticalproblems import ThermalBlockProblem
-from pymor.discretizers import discretize_elliptic_cg
-from pymor.gui.glumpy import ColorBarWidget, GlumpyPatchWidget
+from pymor.algorithms.basisextension import gram_schmidt_basis_extension
+from pymor.algorithms.greedy import greedy
+from pymor.analyticalproblems.thermalblock import ThermalBlockProblem
+from pymor.discretizers.elliptic import discretize_elliptic_cg
+from pymor.gui.gl import ColorBarWidget, GLPatchWidget
 from pymor.reductors.linear import reduce_stationary_affine_linear
-
-core.getLogger('pymor.algorithms').setLevel('DEBUG')
-core.getLogger('pymor.discretizations').setLevel('DEBUG')
+from pymor import gui
 
 PARAM_STEPS = 10
 PARAM_MIN = 0.1
@@ -80,12 +81,13 @@ class ParamRuler(QtGui.QWidget):
             spin.isEnabled = enable
 
 
+# noinspection PyShadowingNames
 class SimPanel(QtGui.QWidget):
     def __init__(self, parent, sim):
         super(SimPanel, self).__init__(parent)
         self.sim = sim
         box = QtGui.QHBoxLayout()
-        self.solution = GlumpyPatchWidget(self, self.sim.grid, vmin=0., vmax=0.8)
+        self.solution = GLPatchWidget(self, self.sim.grid, vmin=0., vmax=0.8)
         self.bar = ColorBarWidget(self, vmin=0., vmax=0.8)
         box.addWidget(self.solution, 2)
         box.addWidget(self.bar, 2)
@@ -112,11 +114,14 @@ class AllPanel(QtGui.QWidget):
         super(AllPanel, self).__init__(parent)
 
         box = QtGui.QVBoxLayout()
-        box.addWidget(SimPanel(self, reduced_sim))
-        box.addWidget(SimPanel(self, detailed_sim))
+        self.reduced_panel = SimPanel(self, reduced_sim)
+        self.detailed_panel = SimPanel(self, detailed_sim)
+        box.addWidget(self.reduced_panel)
+        box.addWidget(self.detailed_panel)
         self.setLayout(box)
 
 
+# noinspection PyShadowingNames
 class RBGui(QtGui.QMainWindow):
     def __init__(self, args):
         super(RBGui, self).__init__()
@@ -129,20 +134,22 @@ class RBGui(QtGui.QMainWindow):
         assert args['--estimator-norm'] in {'trivial', 'h1'}
         reduced = ReducedSim(args)
         detailed = DetailedSim(args)
-        panel = AllPanel(self, reduced, detailed)
-        self.setCentralWidget(panel)
+        self.panel = AllPanel(self, reduced, detailed)
+        self.setCentralWidget(self.panel)
 
 
+# noinspection PyShadowingNames
 class SimBase(object):
     def __init__(self, args):
         self.args = args
         self.first = True
         self.problem = ThermalBlockProblem(num_blocks=(args['XBLOCKS'], args['YBLOCKS']),
                                            parameter_range=(PARAM_MIN, PARAM_MAX))
-        self.discretization, pack = discretize_elliptic_cg(self.problem, diameter=m.sqrt(2) / args['--grid'])
+        self.discretization, pack = discretize_elliptic_cg(self.problem, diameter=1. / args['--grid'])
         self.grid = pack['grid']
 
 
+# noinspection PyShadowingNames,PyShadowingNames
 class ReducedSim(SimBase):
 
     def __init__(self, args):
@@ -167,6 +174,7 @@ class ReducedSim(SimBase):
         return self.reconstructor.reconstruct(self.rb_discretization.solve(mu))
 
 
+# noinspection PyShadowingNames
 class DetailedSim(SimBase):
 
     def __init__(self, args):
@@ -178,8 +186,12 @@ class DetailedSim(SimBase):
 
 
 if __name__ == '__main__':
-    app = QtGui.QApplication(sys.argv)
     args = docopt(__doc__)
-    win = RBGui(args)
-    win.show()
-    sys.exit(app.exec_())
+    testing = args['--testing']
+    if not testing:
+        app = QtGui.QApplication(sys.argv)
+        win = RBGui(args)
+        win.show()
+        sys.exit(app.exec_())
+
+    gui.qt._launch_qt_app(lambda _: RBGui(args), block=False)

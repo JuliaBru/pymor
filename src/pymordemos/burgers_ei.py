@@ -2,8 +2,14 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
+#
+# Contributors: Michael Laier <m_laie01@uni-muenster.de>
 
-'''Burgers with EI demo.
+"""Burgers with EI demo.
+
+Model order reduction of a two-dimensional Burgers-type equation
+(see pymor.analyticalproblems.burgers) using the reduced basis method
+with empirical operator interpolation.
 
 Usage:
   burgers_ei.py [options] EXP_MIN EXP_MAX EI_SNAPSHOTS EISIZE SNAPSHOTS RBSIZE
@@ -60,7 +66,7 @@ Options:
   --vx=XSPEED                     Speed in x-direction [default: 1].
 
   --vy=YSPEED                     Speed in y-direction [default: 1].
-'''
+"""
 
 from __future__ import absolute_import, division, print_function
 
@@ -72,21 +78,16 @@ from functools import partial
 import numpy as np
 from docopt import docopt
 
-import pymor.core as core
-core.logger.MAX_HIERACHY_LEVEL = 2
-from pymor.algorithms import greedy
+from pymor.algorithms.greedy import greedy
 from pymor.algorithms.basisextension import pod_basis_extension
 from pymor.algorithms.ei import interpolate_operators
 from pymor.analyticalproblems.burgers import Burgers2DProblem
 from pymor.discretizers.advection import discretize_nonlinear_instationary_advection_fv
-from pymor.domaindiscretizers import discretize_domain_default
-from pymor.grids import RectGrid, TriaGrid
-from pymor.la import NumpyVectorArray
-from pymor.reductors import reduce_generic_rb, reduce_to_subbasis
-
-
-core.getLogger('pymor.algorithms').setLevel('INFO')
-core.getLogger('pymor.discretizations').setLevel('INFO')
+from pymor.domaindiscretizers.default import discretize_domain_default
+from pymor.grids.rect import RectGrid
+from pymor.grids.tria import TriaGrid
+from pymor.reductors.basic import reduce_generic_rb, reduce_to_subbasis
+from pymor.vectorarrays.numpy import NumpyVectorArray
 
 
 def burgers_demo(args):
@@ -120,7 +121,9 @@ def burgers_demo(args):
 
     print('Discretize ...')
     discretizer = discretize_nonlinear_instationary_advection_fv
-    discretization, _ = discretizer(problem, diameter=m.sqrt(2) / args['--grid'],
+    if args['--grid-type'] == 'rect':
+        args['--grid'] *= 1. / m.sqrt(2)
+    discretization, _ = discretizer(problem, diameter=1. / args['--grid'],
                                     num_flux=args['--num-flux'], lxf_lambda=args['--lxf-lambda'],
                                     nt=args['--nt'], domain_discretizer=domain_discretizer)
 
