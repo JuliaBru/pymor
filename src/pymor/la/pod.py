@@ -1,8 +1,6 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-#
-#Extended by Julia Brunken
 
 from __future__ import absolute_import, division, print_function
 
@@ -15,7 +13,6 @@ from pymor.la import VectorArrayInterface
 from pymor.la.gram_schmidt import gram_schmidt
 from pymor.operators import OperatorInterface
 from pymor.tools import float_cmp_all
-from pymor.la import NumpyVectorArray
 
 
 def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=None,
@@ -61,8 +58,6 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     -------
     |VectorArray| of POD modes.
 
-    Extended by Julia Brunken (to provide MemoryError or too long computation times for large numbers of snapshots)
-
     '''
 
     assert isinstance(A, VectorArrayInterface)
@@ -76,17 +71,7 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     check = defaults.pod_check if check is None else check
     check_tol = defaults.pod_check_tol if check_tol is None else check_tol
 
-
-    MemError=False
-    try:
-        if A._len > 15000:
-            MemoryError
-        B = A.gramian() if product is None else product.apply2(A, A, pairwise=False)
-    except(MemoryError):
-        print('MemoryError')
-        At=NumpyVectorArray(A.data.T)
-        B = (At).gramian()
-        MemError=True
+    B = A.gramian() if product is None else product.apply2(A, A, pairwise=False)
 
     if symmetrize:     # according to rbmatlab this is necessary due to rounding
         B = B + B.T
@@ -106,14 +91,10 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
     EVALS = EVALS[:last_above_tol + 1]
     EVECS = EVECS[:last_above_tol + 1]
 
-
-    if MemError==False:#nfunc <= ngrid:
-        POD = A.lincomb(EVECS / np.sqrt(EVALS[:, np.newaxis]))
-    else:
-        POD=NumpyVectorArray(EVECS)
+    POD = A.lincomb(EVECS / np.sqrt(EVALS[:, np.newaxis]))
 
     if orthonormalize:
-        POD = gram_schmidt(POD, product=product, copy=False, check=False)
+        POD = gram_schmidt(POD, product=product, copy=False)
 
     if check:
         if not product and not float_cmp_all(POD.dot(POD, pairwise=False), np.eye(len(POD)), check_tol):
@@ -124,17 +105,3 @@ def pod(A, modes=None, product=None, tol=None, symmetrize=None, orthonormalize=N
             raise AccuracyError('result not orthogonal (max err={})'.format(err))
 
     return POD
-
-
-
-
-
-
-
-
-
-
-
-
-
-

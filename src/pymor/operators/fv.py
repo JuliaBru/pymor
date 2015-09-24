@@ -88,8 +88,6 @@ class LaxFriedrichsFlux(NumericalConvectiveFluxInterface):
 
     def evaluate_stage2(self, stage1_data, unit_outer_normals, volumes, mu=None):
         U, F = stage1_data
-        A=(np.sum(np.sum(F, axis=1) * unit_outer_normals, axis=1) * 0.5
-                + (U[..., 0] - U[..., 1]) * (0.5 / self.lxf_lambda)) * volumes
         return (np.sum(np.sum(F, axis=1) * unit_outer_normals, axis=1) * 0.5
                 + (U[..., 0] - U[..., 1]) * (0.5 / self.lxf_lambda)) * volumes
 
@@ -296,7 +294,6 @@ class NonlinearAdvectionOperator(OperatorBase):
         assert U.dim == self.dim_source
         mu = self.parse_parameter(mu)
 
-
         ind = xrange(len(U)) if ind is None else ind
         U = U.data
         R = np.zeros((len(ind), self.dim_source))
@@ -333,20 +330,13 @@ class NonlinearAdvectionOperator(OperatorBase):
                 for f, f_d in izip(F_edge, F_dirichlet):
                     f[dirichlet_boundaries, 1] = f_d
 
-
-
             NUM_FLUX = self.numerical_flux.evaluate_stage2(F_edge, unit_outer_normals, VOLS, mu)
 
             if bi.has_neumann:
                 NUM_FLUX[bi.neumann_boundaries(1)] = 0
 
-
-
-
             iadd_masked(Ri, NUM_FLUX, SUPE[:, 0])
             isub_masked(Ri, NUM_FLUX, SUPE[:, 1])
-
-
 
         R /= g.volumes(0)
 

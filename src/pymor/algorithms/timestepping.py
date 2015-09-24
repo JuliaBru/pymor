@@ -223,7 +223,6 @@ def explicit_euler(A, F, U0, t0, t1, nt, mu=None, num_values=None):
     if hasattr(A, 'assemble') and not A_time_dep:
         A = A.assemble(mu)
 
-
     dt = (t1 - t0) / nt
     R = A.type_source.empty(A.dim_source, reserve=num_values)
     R.append(U0)

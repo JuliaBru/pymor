@@ -140,8 +140,8 @@ class StationaryDiscretization(DiscretizationBase):
         mu = self.parse_parameter(mu)
 
         # explicitly checking if logging is disabled saves the str(mu) call
-        #if not self.logging_disabled:
-        #    self.logger.info('Solving {} for {} ...'.format(self.name, mu))
+        if not self.logging_disabled:
+            self.logger.info('Solving {} for {} ...'.format(self.name, mu))
 
         return self.operator.apply_inverse(self.rhs.as_vector(mu), mu=mu)
 

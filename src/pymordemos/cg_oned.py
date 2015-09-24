@@ -67,9 +67,6 @@ def cg_oned_demo(nrhs, n, plot):
     if plot:
         print('Plot ...')
         discretization.visualize(U, title='Solution for diffusionl in [0.1, 1]')
-        u=discretization.solve(mu)
-    print(discretization.products['l2'].apply2(u,u,pairwise=False))
-    print(np.sum(u.data**2)/n)
 
 
 if __name__ == '__main__':

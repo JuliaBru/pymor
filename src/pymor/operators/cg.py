@@ -167,8 +167,6 @@ class L2ProductP1(NumpyMatrixBasedOperator):
 
         self.logger.info('Integrate the products of the shape functions on each element')
         # -> shape = (g.size(0), number of shape functions ** 2)
-        hel=g.integration_elements(0)
-        hel2=SF_INTS = np.einsum('iq,jq,q,e->eij', SFQ, SFQ, w, g.integration_elements(0))
         SF_INTS = np.einsum('iq,jq,q,e->eij', SFQ, SFQ, w, g.integration_elements(0)).ravel()
 
         self.logger.info('Determine global dofs ...')
@@ -189,7 +187,6 @@ class L2ProductP1(NumpyMatrixBasedOperator):
         self.logger.info('Assemble system matrix ...')
         A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
         A = csc_matrix(A).copy()   # See DiffusionOperatorP1 for why copy() is necessary
-        print(A)
 
         return NumpyMatrixOperator(A)
 
