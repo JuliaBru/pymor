@@ -475,8 +475,7 @@ class L2ProductP1WithoutBoundary(NumpyMatrixBasedOperator):
     def __init__(self, grid, boundary_info, dirichlet_clear_rows=True, dirichlet_clear_columns=False,
                  dirichlet_clear_diag=False, name=None):
         assert grid.reference_element in (line, triangle)
-        self.dim_source = grid.size(grid.dim)
-        self.dim_range = self.dim_source
+        self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
         self.boundary_info = boundary_info
         self.dirichlet_clear_rows = dirichlet_clear_rows
@@ -485,7 +484,6 @@ class L2ProductP1WithoutBoundary(NumpyMatrixBasedOperator):
         self.name = name
 
     def _assemble(self, mu=None):
-        assert self.check_parameter(mu)
         g = self.grid
         bi = self.boundary_info
 
@@ -530,7 +528,7 @@ class L2ProductP1WithoutBoundary(NumpyMatrixBasedOperator):
         A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
         A = csc_matrix(A).copy()   # See DiffusionOperatorP1 for why copy() is necessary
 
-        return NumpyMatrixOperator(A)
+        return A
 
 
 class L2ProductP1Absorb(NumpyMatrixBasedOperator):
@@ -575,8 +573,7 @@ class L2ProductP1Absorb(NumpyMatrixBasedOperator):
     def __init__(self, grid, boundary_info, absorb_function=None, dirichlet_clear_rows=True, dirichlet_clear_columns=False,
                  dirichlet_clear_diag=False, name=None):
         assert grid.reference_element in (line, triangle)
-        self.dim_source = grid.size(grid.dim)
-        self.dim_range = self.dim_source
+        self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
         self.absorb_function=absorb_function
         self.boundary_info = boundary_info
@@ -588,7 +585,6 @@ class L2ProductP1Absorb(NumpyMatrixBasedOperator):
             self.build_parameter_type(inherits=(absorb_function,))
 
     def _assemble(self, mu=None):
-        assert self.check_parameter(mu)
         g = self.grid
         bi = self.boundary_info
         mu=self.parse_parameter(mu)
@@ -649,7 +645,7 @@ class L2ProductP1Absorb(NumpyMatrixBasedOperator):
         A = coo_matrix((SF_INTS, (SF_I0, SF_I1)), shape=(g.size(g.dim), g.size(g.dim)))
         A = csc_matrix(A).copy()   # See DiffusionOperatorP1 for why copy() is necessary
 
-        return NumpyMatrixOperator(A)
+        return A
 
 
 class DiffusionOperatorP1(NumpyMatrixBasedOperator):
@@ -1021,7 +1017,7 @@ class DiffusionOperatorP1WithoutBoundary(NumpyMatrixBasedOperator):
     def __init__(self, grid, boundary_info, diffusion_function=None, diffusion_constant=None,
                  dirichlet_clear_columns=False, dirichlet_clear_diag=False, name=None):
         assert grid.reference_element(0) in {triangle, line}, 'A simplicial grid is expected!'
-        self.dim_source = self.dim_range = grid.size(grid.dim)
+        self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
         self.boundary_info = boundary_info
         self.diffusion_constant = diffusion_constant
@@ -1089,4 +1085,4 @@ class DiffusionOperatorP1WithoutBoundary(NumpyMatrixBasedOperator):
         # from pymor.tools.memory import print_memory_usage
         # print_memory_usage('matrix: {0:5.1f}'.format((A.data.nbytes + A.indptr.nbytes + A.indices.nbytes)/1024**2))
 
-        return NumpyMatrixOperator(A)
+        return A

@@ -8,11 +8,13 @@ from __future__ import absolute_import, division, print_function
 
 
 from pymor.analyticalproblems.ellipticplus import EllipticPlusProblem
-from pymor.discretizations import StationaryDiscretization
-from pymor.domaindiscretizers import discretize_domain_default
-from pymor.grids import TriaGrid, OnedGrid
+from pymor.discretizations.basic import StationaryDiscretization
+from pymor.domaindiscretizers.default import discretize_domain_default
+from pymor.grids.tria import TriaGrid
+from pymor.grids.oned import OnedGrid
 from pymor.gui.qt import PatchVisualizer, Matplotlib1DVisualizer
-from pymor.operators.cg import DiffusionOperatorP1, L2ProductFunctionalP1, L2ProductP1, L2ProductP1WithoutBoundary, L2ProductP1Absorb, DiffusionOperatorP1WithoutBoundary
+from pymor.operators.cg import DiffusionOperatorP1, L2ProductFunctionalP1, L2ProductP1WithoutBoundary, L2ProductP1Absorb, DiffusionOperatorP1WithoutBoundary
+from pymor.operators.constructions import LincombOperator
 
 
 def discretize_elliptic_cg_plus(analytical_problem, diameter=None, domain_discretizer=None,
@@ -76,12 +78,8 @@ def discretize_elliptic_cg_plus(analytical_problem, diameter=None, domain_discre
                        name='diffusion_{}'.format(i))
               for i, df in enumerate(p.diffusion_functions)]
 
-        if p.diffusion_functionals is None:
-            L = type(L0).lincomb(operators=Li + [L0], name='diffusion', num_coefficients=len(Li),
-                                 global_names={'coefficients': 'diffusion_coefficients'})
-        else:
-            L = type(L0).lincomb(operators=[L0] + Li, coefficients=[1.] + list(p.diffusion_functionals),
-                                 name='diffusion')
+        L = LincombOperator(operators=[L0] + Li, coefficients=[1.] + list(p.diffusion_functionals),
+                            name='diffusion')
     else:
         L = Operator(grid, boundary_info, diffusion_function=p.diffusion_functions[0],
                      name='diffusion')
@@ -90,17 +88,13 @@ def discretize_elliptic_cg_plus(analytical_problem, diameter=None, domain_discre
                        name='absorb_{}'.format(i))
               for i, af in enumerate(p.absorb_functions)]
 
-        if p.absorb_functionals is None:
-            A = type(Ai[0]).lincomb(operators=Ai, name='absorb', num_coefficients=len(Ai),
-                                 global_names={'coefficients': 'absorb_coefficients'})
-        else:
-            A = type(Ai[0]).lincomb(operators=Ai, coefficients=list(p.absorb_functionals),
-                                 name='absorb')
+        A = LincombOperator(operators=Ai, coefficients=list(p.absorb_functionals),
+                            name='absorb')
     else:
         A = AbsorbOperator(grid, boundary_info, absorb_function=p.absorb_functions[0],
                      name='absorb')
 
-    L = type(L).lincomb(operators=[L] + [A],coefficients=[1, 1])
+    L = LincombOperator(operators=[L] + [A], coefficients=[1, 1])
 
     F = Functional(grid, p.rhs, boundary_info, dirichlet_data=p.dirichlet_data)
 

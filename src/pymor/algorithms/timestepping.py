@@ -24,7 +24,6 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from pymor.core import ImmutableInterface, abstractmethod
 from pymor.core.logger import getLogger
 from pymor.core.interfaces import ImmutableInterface, abstractmethod
 from pymor.operators.interfaces import OperatorInterface
@@ -256,7 +255,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
     logger = getLogger('pymor.algorithms.timestepping.explicit_euler_ndim')
     assert isinstance(A, OperatorInterface)
 
-    assert A.dim_source*sysdim == A.dim_range
+    assert A.source.dim*sysdim == A.range.dim
     num_values = num_values or nt + 1
     proz = 0
 
@@ -264,8 +263,8 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
     assert F is None or isinstance(F, OperatorInterface)
     if isinstance(F, OperatorInterface):
-        assert F.dim_range == 1
-        assert F.dim_source == A.dim_source
+        assert F.range.dim == 1
+        assert F.source == A.source
         F_time_dep = F.parametric and '_t' in F.parameter_type
         if not F_time_dep:
             for j in range(sysdim):
@@ -275,7 +274,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
     for j in range(sysdim):
         assert isinstance(U0[j], VectorArrayInterface)
         assert len(U0[j]) == 1
-        assert U0[j].dim == A.dim_source
+        assert U0[j] in A.source
 
     A_time_dep = A.parametric and '_t' in A.parameter_type
     if hasattr(A, 'assemble') and not A_time_dep:
@@ -285,7 +284,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
     R = dict.fromkeys(range(sysdim))
     for j in range(sysdim):
-        R[j] = A.type_source.empty(A.dim_source, reserve=num_values)
+        R[j] = A.source.empty(reserve=num_values)
         R[j].append(U0[j])
 
     t = t0

@@ -441,25 +441,25 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
     Author: Julia Brunken (Extension of class: InstationaryDiscretization
     '''
 
-    sid_ignore = ('visualizer', 'cache_region', 'name')
+    sid_ignore = DiscretizationInterface.sid_ignore | {'visualizer'}
 
     def __init__(self, sysdim, T, initial_data, operator, rhs=None, mass=None, time_stepper=None, num_values=None,
                  products=None, parameter_space=None, estimator=None, visualizer=None, cache_region='disk',
                  name=None):
         for j in range(sysdim):
             assert isinstance(initial_data[j], (VectorArrayInterface, OperatorInterface))
-            assert not isinstance(initial_data[j], OperatorInterface) or initial_data[j].dim_source == 1
+            assert not isinstance(initial_data[j], OperatorInterface) or initial_data[j].source == NumpyVectorSpace(1)
             if isinstance(initial_data[j], VectorArrayInterface):
                 initial_data[j] = VectorOperator(initial_data[j], name='initial_data')
 
-        assert isinstance(operator, OperatorInterface)
-        assert rhs is None or isinstance(rhs, OperatorInterface) and rhs.linear
-        assert mass is None or isinstance(mass, OperatorInterface) and mass.linear
-
         assert isinstance(time_stepper, TimeStepperInterface)
         #assert operator.dim_source == operator.dim_range == initial_data.dim_range
-        assert rhs is None or rhs.dim_source == operator.dim_source and rhs.dim_range == 1
-        assert mass is None or mass.dim_source == mass.dim_range == operator.dim_source
+
+        assert rhs is None or isinstance(rhs, OperatorInterface) and rhs.linear
+        assert rhs is None or rhs.source == operator.source and rhs.range.dim == 1
+
+        assert mass is None or isinstance(mass, OperatorInterface) and mass.linear
+        assert mass is None or mass.source == mass.range == operator.source
 
         operators = {'operator': operator, 'mass': mass}
         functionals = {'rhs': rhs}
@@ -470,8 +470,7 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
                                                          visualizer=visualizer, cache_region=cache_region, name=name)
         self.sysdim = sysdim
         self.T = T
-        self.dim_solution = operator.dim_source
-        self.type_solution = operator.type_source
+        self.solution_space = operator.source
         self.initial_data = initial_data
         self.operator = operator
         self.rhs = rhs

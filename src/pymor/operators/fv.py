@@ -415,8 +415,8 @@ class AdvectionOperatorNDim(OperatorBase):
         assert dirichlet_data is None or isinstance(dirichlet_data, FunctionInterface)
         self.name = name
         self.build_parameter_type(inherits=(numerical_flux, dirichlet_data))
-        self.dim_source = grid.size(0)
-        self.dim_range = grid.size(0)*self.sysdim
+        self.source = NumpyVectorSpace(grid.size(0))
+        self.range = NumpyVectorSpace(grid.size(0)*self.sysdim)
         self.with_arguments = self.with_arguments.union('numerical_flux_{}'.format(arg)
                                                         for arg in numerical_flux.with_arguments)
 
@@ -430,21 +430,10 @@ class AdvectionOperatorNDim(OperatorBase):
             kwargs['numerical_flux'] = self.numerical_flux.with_(**num_flux_args)
         return self._with_via_init(kwargs)
 
-    def restricted(self, components):
-        source_dofs = np.setdiff1d(np.union1d(self.grid.neighbours(0, 0)[components].ravel(), components),
-                                   np.array([-1], dtype=np.int32),
-                                   assume_unique=True)
-        sub_grid = SubGrid(self.grid, entities=source_dofs)
-        sub_boundary_info = SubGridBoundaryInfo(sub_grid, self.grid, self.boundary_info)
-        op = self.with_(grid=sub_grid, boundary_info=sub_boundary_info, name='{}_restricted'.format(self.name))
-        sub_grid_indices = sub_grid.indices_from_parent_indices(components, codim=0)
-        proj = ComponentProjection(sub_grid_indices, op.dim_range, op.type_range)
-        return Concatenation(proj, op), sub_grid.parent_indices(0)
-
     def apply(self, U, ind=None, mu=None):
         for j in range(self.sysdim):
             assert isinstance(U[j], NumpyVectorArray)
-            assert U[j].dim == self.dim_source
+            assert U[j].dim == self.source.dim
 
         mu = self.parse_parameter(mu)
 

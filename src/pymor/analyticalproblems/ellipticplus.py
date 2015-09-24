@@ -7,13 +7,12 @@
 
 from __future__ import absolute_import, division, print_function
 
-from pymor.core import ImmutableInterface
-from pymor.domaindescriptions import RectDomain
-from pymor.functions import ConstantFunction
-from pymor.tools import Named
+from pymor.core.interfaces import ImmutableInterface
+from pymor.domaindescriptions.basic import RectDomain
+from pymor.functions.basic import ConstantFunction
 
 
-class EllipticPlusProblem(ImmutableInterface, Named):
+class EllipticPlusProblem(ImmutableInterface):
     '''Linear elliptic analytical problem.
 
     The problem consists in solving ::
