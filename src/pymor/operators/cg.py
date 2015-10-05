@@ -313,8 +313,6 @@ class L2ProductP1(NumpyMatrixBasedOperator):
         else:
             raise NotImplementedError
 
-
-
         # evaluate the shape functions on the quadrature points
         SFQ = np.array(tuple(f(q) for f in SF))
 
