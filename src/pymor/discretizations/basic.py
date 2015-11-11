@@ -25,7 +25,7 @@ class DiscretizationBase(DiscretizationInterface):
     sid_ignore = DiscretizationInterface.sid_ignore | {'visualizer'}
 
     def __init__(self, operators, functionals, vector_operators, products=None, estimator=None, visualizer=None,
-                 cache_region='disk', name=None):
+                 cache_region=None, name=None):
         self.operators = FrozenDict(operators)
         self.functionals = FrozenDict(functionals)
         self.vector_operators = FrozenDict(vector_operators)
@@ -33,7 +33,7 @@ class DiscretizationBase(DiscretizationInterface):
         self.products = products
         self.estimator = estimator
         self.visualizer = visualizer
-        self.cache_region = cache_region
+        self.enable_caching(cache_region)
         self.name = name
 
         if products:
@@ -117,7 +117,7 @@ class StationaryDiscretization(DiscretizationBase):
     """
 
     def __init__(self, operator, rhs, products=None, operators=None, functionals=None, vector_operators=None,
-                 parameter_space=None, estimator=None, visualizer=None, cache_region='disk', name=None):
+                 parameter_space=None, estimator=None, visualizer=None, cache_region=None, name=None):
         functionals = functionals or {}
         operators = operators or {}
         vector_operators = vector_operators or {}
@@ -256,7 +256,7 @@ class InstationaryDiscretization(DiscretizationBase):
 
     def __init__(self, T, initial_data, operator, rhs=None, mass=None, time_stepper=None, num_values=None,
                  products=None, operators=None, functionals=None, vector_operators=None, parameter_space=None,
-                 estimator=None, visualizer=None, cache_region='disk', name=None):
+                 estimator=None, visualizer=None, cache_region=None, name=None):
         functionals = functionals or {}
         operators = operators or {}
         vector_operators = vector_operators or {}
