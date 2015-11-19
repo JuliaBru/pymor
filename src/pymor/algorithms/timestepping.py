@@ -281,6 +281,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
         A = A.assemble(mu)
 
     dt = (t1 - t0) / nt
+    DT = (t1 - t0) / (num_values - 1)
 
     R = dict.fromkeys(range(sysdim))
     for j in range(sysdim):
@@ -309,7 +310,8 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
                     raise ValueError
                 U[j].axpy(dt, -Ua[j])
 
-            if (n + 1) * (num_values / nt) >= len(R[0]):
+            #if (n + 1) * (num_values / nt) >= len(R[0]):
+            while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT:
                 tvec = np.append(tvec, t)
                 for j in range(sysdim):
                     R[j].append(U[j])
@@ -333,7 +335,8 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
                 if np.max(U[j].data) > 10000:
                     raise ValueError
 
-            if (n + 1) * (num_values / nt) >= len(R[0]):
+            #if (n + 1) * (num_values / nt) >= len(R[0]):
+            while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT:
                 tvec = np.append(tvec, t)
                 for j in range(sysdim):
                     R[j].append(U[j])
