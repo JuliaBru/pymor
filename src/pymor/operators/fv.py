@@ -24,7 +24,6 @@ from pymor.operators.basic import OperatorBase
 from pymor.operators.constructions import Concatenation, ComponentProjection
 from pymor.operators.numpy import NumpyMatrixBasedOperator
 from pymor.parameters.base import Parametric
-from pymor.tools.arguments import method_arguments
 from pymor.tools.inplace import iadd_masked, isub_masked
 from pymor.tools.quadratures import GaussQuadratures
 from pymor.vectorarrays.numpy import NumpyVectorArray, NumpyVectorSpace
@@ -270,10 +269,8 @@ class NonlinearAdvectionOperator(OperatorBase):
             self._dirichlet_values_flux_shaped = self._dirichlet_values.reshape((-1, 1))
         self.build_parameter_type(inherits=(numerical_flux, dirichlet_data))
         self.source = self.range = NumpyVectorSpace(grid.size(0))
-        self.with_arguments = self.with_arguments.union('numerical_flux_{}'.format(arg)
-                                                        for arg in numerical_flux.with_arguments)
-
-    with_arguments = frozenset(method_arguments(__init__))
+        self.add_with_arguments = self.add_with_arguments.union('numerical_flux_{}'.format(arg)
+                                                                for arg in numerical_flux.with_arguments)
 
     def with_(self, **kwargs):
         assert 'numerical_flux' not in kwargs or not any(arg.startswith('numerical_flux_') for arg in kwargs)
@@ -281,7 +278,7 @@ class NonlinearAdvectionOperator(OperatorBase):
                          for arg in list(kwargs) if arg.startswith('numerical_flux_')}
         if num_flux_args:
             kwargs['numerical_flux'] = self.numerical_flux.with_(**num_flux_args)
-        return self._with_via_init(kwargs)
+        return super(NonlinearAdvectionOperator, self).with_(**kwargs)
 
     def restricted(self, dofs):
         source_dofs = np.setdiff1d(np.union1d(self.grid.neighbours(0, 0)[dofs].ravel(), dofs),
