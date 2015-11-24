@@ -398,7 +398,8 @@ class AdvectionOperatorNDim(OperatorBase):
     Author: Julia Brunken (Extension of NonlinearAdvectionOperator)
     '''
 
-    type_source = type_range = NumpyVectorArray
+    sid_ignore = OperatorBase.sid_ignore | {'_grid_data'}
+
     linear = False
 
     def __init__(self, sysdim, grid, boundary_info, numerical_flux, low_order_terms=None, dirichlet_data=None, name=None):
@@ -414,10 +415,8 @@ class AdvectionOperatorNDim(OperatorBase):
         self.build_parameter_type(inherits=(numerical_flux, dirichlet_data))
         self.source = NumpyVectorSpace(grid.size(0))
         self.range = NumpyVectorSpace(grid.size(0)*self.sysdim)
-        self.with_arguments = self.with_arguments.union('numerical_flux_{}'.format(arg)
+        self.add_with_arguments = self.add_with_arguments.union('numerical_flux_{}'.format(arg)
                                                         for arg in numerical_flux.with_arguments)
-
-    with_arguments = frozenset(method_arguments(__init__))
 
     def with_(self, **kwargs):
         assert 'numerical_flux' not in kwargs or not any(arg.startswith('numerical_flux_') for arg in kwargs)
@@ -425,7 +424,23 @@ class AdvectionOperatorNDim(OperatorBase):
                          for arg in list(kwargs) if arg.startswith('numerical_flux_')}
         if num_flux_args:
             kwargs['numerical_flux'] = self.numerical_flux.with_(**num_flux_args)
-        return self._with_via_init(kwargs)
+        return super(AdvectionOperatorNDim, self).with_(**kwargs)
+
+    def _fetch_grid_data(self):
+        # pre-fetch all grid-associated data to avoid searching the cache for each operator application
+        g = self.grid
+        bi = self.boundary_info
+        self._grid_data = dict(SUPE=g.superentities(1, 0),
+                               SUPI=g.superentity_indices(1, 0),
+                               VOLS0=g.volumes(0),
+                               VOLS1=g.volumes(1),
+                               BOUNDARIES=g.boundaries(1),
+                               CENTERS=g.centers(1),
+                               DIRICHLET_BOUNDARIES=bi.dirichlet_boundaries(1) if bi.has_dirichlet else None,
+                               NEUMANN_BOUNDARIES=bi.neumann_boundaries(1) if bi.has_neumann else None,
+                               QUADRATURE_POINTS=g.quadrature_points(0, order=1))
+        self._grid_data.update(UNIT_OUTER_NORMALS=g.unit_outer_normals()[self._grid_data['SUPE'][:, 0],
+                                                                         self._grid_data['SUPI'][:, 0]])
 
     def apply(self, U, ind=None, mu=None):
         for j in range(self.sysdim):
@@ -434,35 +449,52 @@ class AdvectionOperatorNDim(OperatorBase):
 
         mu = self.parse_parameter(mu)
 
+        if not hasattr(self, '_grid_data'):
+            self._fetch_grid_data()
+
         #ind wird gebraucht fuer Zeit-Mehrschrittverfahren?? Hab ich nicht..
         assert len(U[0]) == 1
         #ind = xrange(len(U[0])) if ind is None else ind
 
-        R=np.zeros((self.sysdim,U[0].dim))
+        R=np.zeros((self.sysdim,self.source.dim))
         for j in range(self.sysdim):
             U[j] = U[j].data
 
-        g = self.grid
         bi = self.boundary_info
-        SUPE = g.superentities(1, 0)
-        SUPI = g.superentity_indices(1, 0)
-        assert SUPE.ndim == 2
-        VOLS = g.volumes(1)
-        boundaries = g.boundaries(1)
-        unit_outer_normals = g.unit_outer_normals()[SUPE[:, 0], SUPI[:, 0]]
+        gd = self._grid_data
+        SUPE = gd['SUPE']
+        VOLS0 = gd['VOLS0']
+        VOLS1 = gd['VOLS1']
+        BOUNDARIES = gd['BOUNDARIES']
+        CENTERS = gd['CENTERS']
+        DIRICHLET_BOUNDARIES = gd['DIRICHLET_BOUNDARIES']
+        NEUMANN_BOUNDARIES = gd['NEUMANN_BOUNDARIES']
+        UNIT_OUTER_NORMALS = gd['UNIT_OUTER_NORMALS']
+        QUADRATURE_POINTS = gd['QUADRATURE_POINTS']
+
+
+        #g = self.grid
+        #bi = self.boundary_info
+        #SUPE = g.superentities(1, 0)
+        #SUPI = g.superentity_indices(1, 0)
+        #assert SUPE.ndim == 2
+        #VOLS = g.volumes(1)
+        #boundaries = g.boundaries(1)
+        #unit_outer_normals = g.unit_outer_normals()[SUPE[:, 0], SUPI[:, 0]]
+
+
+
 
         if bi.has_dirichlet:
-            dirichlet_boundaries = bi.dirichlet_boundaries(1)
-
             dirichlet_values = dict.fromkeys(range(self.sysdim))
             for j in range(self.sysdim):
                 mu['komp'] = j
                 if hasattr(self, '_dirichlet_values'):
                     dirichlet_values[j] = self._dirichlet_values[j]
                 elif self.dirichlet_data is not None:
-                    dirichlet_values[j] = self.dirichlet_data(g.centers(1)[dirichlet_boundaries], mu=mu)
+                    dirichlet_values[j] = self.dirichlet_data(CENTERS[DIRICHLET_BOUNDARIES], mu=mu)
                 else:
-                    dirichlet_values[j] = np.zeros_like(dirichlet_boundaries)
+                    dirichlet_values[j] = np.zeros_like(DIRICHLET_BOUNDARIES)
 
         # for i, j in enumerate(ind): #fuer euler egal weil ind sowieso 1?
 
@@ -481,19 +513,18 @@ class AdvectionOperatorNDim(OperatorBase):
         F_edge = [f[:,SUPE] for f in F]
 
         for f in F_edge:
-            f[:, boundaries, 1] = f[:, boundaries, 0]
+            f[:,BOUNDARIES, 1] = f[:,BOUNDARIES, 0]
         if bi.has_dirichlet:
             for f, f_d in izip(F_edge, F_dirichlet):
-                f[:, dirichlet_boundaries, 1] = f_d
+                f[:,DIRICHLET_BOUNDARIES, 1] = f_d
 
-        NUM_FLUX = self.numerical_flux.evaluate_stage2(F_edge, unit_outer_normals, VOLS, mu)
+        NUM_FLUX = self.numerical_flux.evaluate_stage2(F_edge, UNIT_OUTER_NORMALS, VOLS1, mu)
 
         if bi.has_neumann:
-            NUM_FLUX[bi.neumann_boundaries(1)] = 0
+            NUM_FLUX[NEUMANN_BOUNDARIES] = 0
 
         if self.low_order_terms is not None:
-            x = g.quadrature_points(0, order=1)
-            xu = np.append(x[..., 0], Usys.T, axis=1)
+            xu = np.append(QUADRATURE_POINTS[..., 0], Usys.T, axis=1)
 
             low_order = dict.fromkeys(range(self.sysdim))
             for j in range(self.sysdim):
@@ -507,7 +538,7 @@ class AdvectionOperatorNDim(OperatorBase):
             iadd_masked(R[j, ...], NUM_FLUX[j, ...], SUPE[:, 0])
             isub_masked(R[j, ...], NUM_FLUX[j, ...], SUPE[:, 1])
 
-            R[j, ...] /= g.volumes(0)
+            R[j, ...] /= VOLS0
             if self.low_order_terms is not None:
                 R[j, ...] += low_order[j]
 

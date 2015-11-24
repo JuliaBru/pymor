@@ -346,7 +346,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
                     raise ValueError
 
             #if (n + 1) * (num_values / nt) >= len(R[0]):
-            while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT:
+            while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT and len(R[0]) < num_values:
                 tvec = np.append(tvec, t)
                 for j in range(sysdim):
                     R[j].append(U[j])
