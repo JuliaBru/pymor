@@ -169,20 +169,41 @@ def test_apply_adjoint_2_with_products(operator_with_arrays_and_products):
 
 def test_apply_inverse(operator_with_arrays):
     op, mu, _, V = operator_with_arrays
-    for options in chain([None], op.invert_options, op.invert_options.itervalues()):
-        for ind in valid_inds(V):
-            try:
-                U = op.apply_inverse(V, mu=mu, ind=ind, options=options)
-            except InversionError:
-                return
-            assert U in op.source
-            assert len(U) == V.len_ind(ind)
-            VV = op.apply(U, mu=mu)
-            if (isinstance(options, str) and options.startswith('least_squares')
-                    or not isinstance(options, (str, type(None))) and options['type'].startswith('least_squares')):
-                continue
-            assert float_cmp_all(VV.l2_norm(), V.l2_norm(ind=ind), atol=1e-10, rtol=0.5)
+    for ind in valid_inds(V):
+        try:
+            U = op.apply_inverse(V, mu=mu, ind=ind)
+        except InversionError:
+            return
+        assert U in op.source
+        assert len(U) == V.len_ind(ind)
+        VV = op.apply(U, mu=mu)
+        assert np.all(almost_equal(VV, V, V_ind=ind, atol=1e-10, rtol=1e-3))
 
+
+def test_apply_inverse_adjoint(operator_with_arrays):
+    op, mu, U, _ = operator_with_arrays
+    for ind in valid_inds(U):
+        try:
+            V = op.apply_inverse_adjoint(U, mu=mu, ind=ind)
+        except InversionError:
+            return
+        assert V in op.range
+        assert len(V) == U.len_ind(ind)
+        UU = op.apply_adjoint(V, mu=mu)
+        assert np.all(almost_equal(UU, U, V_ind=ind, atol=1e-10, rtol=1e-3))
+
+
+def test_apply_inverse_adjoint_with_products(operator_with_arrays_and_products):
+    op, mu, U, _, sp, rp = operator_with_arrays_and_products
+    for ind in valid_inds(U):
+        try:
+            V = op.apply_inverse_adjoint(U, mu=mu, ind=ind, source_product=sp, range_product=rp)
+        except InversionError:
+            return
+        assert V in op.range
+        assert len(V) == U.len_ind(ind)
+        UU = op.apply_adjoint(V, mu=mu, source_product=sp, range_product=rp)
+        assert np.all(almost_equal(UU, U, V_ind=ind, atol=1e-10, rtol=1e-3))
 
 def test_projected(operator_with_arrays):
     op, mu, U, V = operator_with_arrays

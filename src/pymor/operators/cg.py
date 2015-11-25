@@ -60,7 +60,7 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
     range = NumpyVectorSpace(1)
 
     def __init__(self, grid, function, boundary_info=None, dirichlet_data=None, neumann_data=None, robin_data=None,
-                 order=2, name=None):
+                 order=2, solver_options=None, name=None):
         assert grid.reference_element(0) in {line, triangle}
         assert function.shape_range == tuple()
         self.source = NumpyVectorSpace(grid.size(grid.dim))
@@ -71,6 +71,7 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
         self.neumann_data = neumann_data
         self.robin_data = robin_data
         self.order = order
+        self.solver_options = solver_options
         self.name = name
         self.build_parameter_type(inherits=(function, dirichlet_data, neumann_data))
 
@@ -286,7 +287,7 @@ class L2ProductP1(NumpyMatrixBasedOperator):
     sparse = True
 
     def __init__(self, grid, boundary_info, dirichlet_clear_rows=True, dirichlet_clear_columns=False,
-                 dirichlet_clear_diag=False, name=None):
+                 dirichlet_clear_diag=False, solver_options=None, name=None):
         assert grid.reference_element in (line, triangle)
         self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
@@ -294,6 +295,7 @@ class L2ProductP1(NumpyMatrixBasedOperator):
         self.dirichlet_clear_rows = dirichlet_clear_rows
         self.dirichlet_clear_columns = dirichlet_clear_columns
         self.dirichlet_clear_diag = dirichlet_clear_diag
+        self.solver_options = solver_options
         self.name = name
 
     def _assemble(self, mu=None):
@@ -377,7 +379,7 @@ class L2ProductQ1(NumpyMatrixBasedOperator):
     sparse = True
 
     def __init__(self, grid, boundary_info, dirichlet_clear_rows=True, dirichlet_clear_columns=False,
-                 dirichlet_clear_diag=False, name=None):
+                 dirichlet_clear_diag=False, solver_options=None, name=None):
         assert grid.reference_element in {square}
         self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
@@ -385,6 +387,7 @@ class L2ProductQ1(NumpyMatrixBasedOperator):
         self.dirichlet_clear_rows = dirichlet_clear_rows
         self.dirichlet_clear_columns = dirichlet_clear_columns
         self.dirichlet_clear_diag = dirichlet_clear_diag
+        self.solver_options = solver_options
         self.name = name
 
     def _assemble(self, mu=None):
@@ -683,7 +686,8 @@ class DiffusionOperatorP1(NumpyMatrixBasedOperator):
     sparse = True
 
     def __init__(self, grid, boundary_info, diffusion_function=None, diffusion_constant=None,
-                 dirichlet_clear_columns=False, dirichlet_clear_diag=False, name=None):
+                 dirichlet_clear_columns=False, dirichlet_clear_diag=False,
+                 solver_options=None, name=None):
         assert grid.reference_element(0) in {triangle, line}, 'A simplicial grid is expected!'
         assert diffusion_function is None \
             or (isinstance(diffusion_function, FunctionInterface) and
@@ -696,6 +700,7 @@ class DiffusionOperatorP1(NumpyMatrixBasedOperator):
         self.diffusion_function = diffusion_function
         self.dirichlet_clear_columns = dirichlet_clear_columns
         self.dirichlet_clear_diag = dirichlet_clear_diag
+        self.solver_options = solver_options
         self.name = name
         if diffusion_function is not None:
             self.build_parameter_type(inherits=(diffusion_function,))
@@ -801,7 +806,8 @@ class DiffusionOperatorQ1(NumpyMatrixBasedOperator):
     sparse = True
 
     def __init__(self, grid, boundary_info, diffusion_function=None, diffusion_constant=None,
-                 dirichlet_clear_columns=False, dirichlet_clear_diag=False, name=None):
+                 dirichlet_clear_columns=False, dirichlet_clear_diag=False,
+                 solver_options=None, name=None):
         assert grid.reference_element(0) in {square}, 'A square grid is expected!'
         assert diffusion_function is None \
             or (isinstance(diffusion_function, FunctionInterface) and
@@ -814,6 +820,7 @@ class DiffusionOperatorQ1(NumpyMatrixBasedOperator):
         self.diffusion_function = diffusion_function
         self.dirichlet_clear_columns = dirichlet_clear_columns
         self.dirichlet_clear_diag = dirichlet_clear_diag
+        self.solver_options = solver_options
         self.name = name
         if diffusion_function is not None:
             self.build_parameter_type(inherits=(diffusion_function,))
@@ -910,7 +917,7 @@ class RobinBoundaryOperator(NumpyMatrixBasedOperator):
 
     sparse = True
 
-    def __init__(self, grid, boundary_info, robin_data=None, order=2, name=None):
+    def __init__(self, grid, boundary_info, robin_data=None, order=2, solver_options=None, name=None):
         assert robin_data is None or (isinstance(robin_data, tuple) and len(robin_data) == 2)
         assert robin_data is None or all([isinstance(f, FunctionInterface)
                                           and f.dim_domain == grid.dim_outer
@@ -919,6 +926,7 @@ class RobinBoundaryOperator(NumpyMatrixBasedOperator):
         self.grid = grid
         self.boundary_info = boundary_info
         self.robin_data = robin_data
+        self.solver_options = solver_options
         self.name = name
         self.order = order
 
