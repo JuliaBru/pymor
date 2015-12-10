@@ -101,7 +101,7 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
         # map local DOFs to global DOFs
         # FIXME This implementation is horrible, find a better way!
         SF_I = g.subentities(0, g.dim).ravel()
-        I = np.array(coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).todense()).ravel()
+        I = coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).toarray().ravel()
 
         # neumann boundary treatment
         if bi is not None and bi.has_neumann and self.neumann_data is not None:
@@ -114,8 +114,7 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
                 SF = np.squeeze(np.array([1 - q, q]))
                 SF_INTS = np.einsum('ei,pi,e,i->ep', F, SF, g.integration_elements(1)[NI], w).ravel()
                 SF_I = g.subentities(1, 2)[NI].ravel()
-                I += np.array(coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim)))
-                                        .todense()).ravel()
+                I += coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).toarray().ravel()
 
         # robin boundary treatment
         if bi is not None and bi.has_robin and self.robin_data is not None:
@@ -130,8 +129,7 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
                 SF = np.squeeze(np.array([1 - q, q]))
                 SF_INTS = np.einsum('ei,pi,e,i->ep', F, SF, g.integration_elements(1)[RI], w).ravel()
                 SF_I = g.subentities(1, 2)[RI].ravel()
-                I += np.array(coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim)))
-                                        .todense()).ravel()
+                I += coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).toarray().ravel()
 
         if bi is not None and bi.has_dirichlet:
             DI = bi.dirichlet_boundaries(g.dim)
@@ -221,7 +219,7 @@ class L2ProductFunctionalQ1(NumpyMatrixBasedOperator):
         # map local DOFs to global DOFs
         # FIXME This implementation is horrible, find a better way!
         SF_I = g.subentities(0, g.dim).ravel()
-        I = np.array(coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).todense()).ravel()
+        I = coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).toarray().ravel()
 
         # neumann boundary treatment
         if bi is not None and bi.has_neumann and self.neumann_data is not None:
@@ -231,8 +229,7 @@ class L2ProductFunctionalQ1(NumpyMatrixBasedOperator):
             SF = np.squeeze(np.array([1 - q, q]))
             SF_INTS = np.einsum('ei,pi,e,i->ep', F, SF, g.integration_elements(1)[NI], w).ravel()
             SF_I = g.subentities(1, 2)[NI].ravel()
-            I += np.array(coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim)))
-                                    .todense()).ravel()
+            I += coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).array().ravel()
 
         if bi is not None and bi.has_robin and self.robin_data is not None:
             RI = bi.robin_boundaries(1)
@@ -242,8 +239,7 @@ class L2ProductFunctionalQ1(NumpyMatrixBasedOperator):
             SF = np.squeeze(np.array([1 - q, q]))
             SF_INTS = np.einsum('ei,pi,e,i->ep', F, SF, g.integration_elements(1)[RI], w).ravel()
             SF_I = g.subentities(1, 2)[RI].ravel()
-            I += np.array(coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim)))
-                                    .todense()).ravel()
+            I += coo_matrix((SF_INTS, (np.zeros_like(SF_I), SF_I)), shape=(1, g.size(g.dim))).toarray().ravel()
 
         if bi is not None and bi.has_dirichlet:
             DI = bi.dirichlet_boundaries(g.dim)
