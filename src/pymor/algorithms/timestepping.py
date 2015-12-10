@@ -23,7 +23,9 @@ from __future__ import absolute_import, division, print_function
 from pymor.core.interfaces import ImmutableInterface, abstractmethod
 from pymor.operators.interfaces import OperatorInterface
 from pymor.vectorarrays.interfaces import VectorArrayInterface
-
+from pymor.core.logger import getLogger
+import numpy as np
+from pymor.vectorarrays.numpy import NumpyVectorArray
 
 class TimeStepperInterface(ImmutableInterface):
     """Interface for time-stepping algorithms.
@@ -153,6 +155,7 @@ def implicit_euler(A, F, M, U0, t0, t1, nt, mu=None, num_values=None, solver_opt
     num_values = num_values or nt + 1
     dt = (t1 - t0) / nt
     DT = (t1 - t0) / (num_values - 1)
+
 
     if F is None:
         F_time_dep = False
@@ -303,8 +306,13 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
     for j in range(sysdim):
         U[j] = NumpyVectorArray(U0[j].copy())
 
+    while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT: 
+        tvec = np.append(tvec, t)
+        for j in range(sysdim):
+            R[j].append(U[j])
+
     if F is None:
-        for n in xrange(nt + 1):
+        for n in xrange(nt):
             t += dt
             if n/nt > proz:
                 logger.info('{} %'.format(proz*100))
@@ -315,18 +323,17 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
                 tvec = np.append(tvec, t)
 
             for j in range(sysdim):
-                if np.max(U[j].data) > 10000:
+                if np.max(U[j].data) > 100:
                     raise ValueError
                 U[j].axpy(dt, -Ua[j])
 
-            #if (n + 1) * (num_values / nt) >= len(R[0]):
             while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT:
                 tvec = np.append(tvec, t)
                 for j in range(sysdim):
                     R[j].append(U[j])
 
     else:
-        for n in xrange(nt + 1):
+        for n in xrange(nt):
             t += dt
             if n/nt > proz:
                 logger.info('{} %'.format(proz*100))
@@ -341,11 +348,10 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
 
             for j in range(sysdim):
                 U[j].axpy(dt, F_ass[j] - Ua[j])
-                if np.max(U[j].data) > 10000:
+                if np.max(U[j].data) > 100:
                     raise ValueError
 
-            #if (n + 1) * (num_values / nt) >= len(R[0]):
-            while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT and len(R[0]) < num_values:
+            while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT:
                 tvec = np.append(tvec, t)
                 for j in range(sysdim):
                     R[j].append(U[j])
