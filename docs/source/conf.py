@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
 import sys, os, re
+
+PY2 = sys.version_info.major == 2
+
+os.environ['PYMOR_WITH_SPHINX'] = '1'
 
 # Fix documentation generation for readthedocs.org
 
@@ -102,7 +106,7 @@ master_doc = 'index'
 
 # General substitutions.
 project = 'pyMOR'
-copyright = '2012-2015, the pyMOR AUTHORS'
+copyright = '2012-2016, the pyMOR AUTHORS'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
@@ -111,7 +115,7 @@ version = str(pymor.VERSION)
 
 # The full version, including alpha/beta/rc tags.
 release = version.split('-')[0]
-print version, release
+print(version, release)
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -277,7 +281,7 @@ coverage_ignore_c_items = {}
 
 # autodoc_default_flags = ['members', 'undoc-members', 'show-inheritance']
 
-intersphinx_mapping = {'python': ('http://docs.python.org/2.7', None),
+intersphinx_mapping = {'python': ('http://docs.python.org/' + ('2.7' if PY2 else '3'), None),
                        'numpy': ('http://docs.scipy.org/doc/numpy', None),
                        'scipy': ('http://docs.scipy.org/doc/scipy/reference', None)}
 

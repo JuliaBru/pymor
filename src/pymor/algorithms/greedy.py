@@ -1,8 +1,6 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-
-from __future__ import absolute_import, division, print_function
 
 import time
 
@@ -16,7 +14,7 @@ from pymor.parallel.manager import RemoteObjectManager
 
 
 def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=True, error_norm=None,
-           extension_algorithm=gram_schmidt_basis_extension, target_error=None, max_extensions=None,
+           extension_algorithm=gram_schmidt_basis_extension, atol=None, rtol=None, max_extensions=None,
            pool=None):
     """Greedy basis generation algorithm.
 
@@ -43,7 +41,7 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
         `(last_reduced_discretization, last_reconstructor, last_reduction_data)`
         which can be used by the reductor to speed up the reduction
         process. For an example see
-        :func:`~pymor.reductors.linear.reduce_stationary_affine_linear`.
+        :func:`~pymor.reductors.coercive.reduce_coercive`.
     samples
         The set of |Parameter| samples on which to perform the greedy search.
     initial_basis
@@ -64,9 +62,12 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
         `extension_data` is a dict at least containing the key
         `hierarchic`. `hierarchic` should be set to `True` if `new_basis`
         contains `old_basis` as its first vectors.
-    target_error
+    atol
         If not `None`, stop the algorithm if the maximum (estimated) error
         on the sample set drops below this value.
+    rtol
+        If not `None`, stop the algorithm if the maximum (estimated)
+        relative error on the sample set drops below this value.
     max_extensions
         If not `None`, stop the algorithm after `max_extensions` extension
         steps.
@@ -113,9 +114,9 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
 
         rd, rc, reduction_data = None, None, None
         while True:
-            logger.info('Reducing ...')
-            rd, rc, reduction_data = reductor(discretization, basis) if not hierarchic \
-                else reductor(discretization, basis, extends=(rd, rc, reduction_data))
+            with logger.block('Reducing ...'):
+                rd, rc, reduction_data = reductor(discretization, basis) if not hierarchic \
+                    else reductor(discretization, basis, extends=(rd, rc, reduction_data))
 
             if sample_count == 0:
                 logger.info('There is nothing else to do for empty samples.')
@@ -123,14 +124,14 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
                         'max_errs': [], 'max_err_mus': [], 'extensions': 0,
                         'time': time.time() - tic, 'reduction_data': reduction_data}
 
-            logger.info('Estimating errors ...')
-            if use_estimator:
-                errors, mus = zip(*pool.apply(_estimate, rd=rd, d=None, rc=None, samples=samples, error_norm=None))
-            else:
-                # FIXME: Always communicating rc may become a bottleneck in some use cases.
-                #        Add special treatment for GenericRBReconstructor?
-                errors, mus = zip(*pool.apply(_estimate, rd=rd, d=discretization, rc=rc,
-                                              samples=samples, error_norm=error_norm))
+            with logger.block('Estimating errors ...'):
+                if use_estimator:
+                    errors, mus = list(zip(*pool.apply(_estimate, rd=rd, d=None, rc=None, samples=samples, error_norm=None)))
+                else:
+                    # FIXME: Always communicating rc may become a bottleneck in some use cases.
+                    #        Add special treatment for GenericRBReconstructor?
+                    errors, mus = list(zip(*pool.apply(_estimate, rd=rd, d=discretization, rc=rc,
+                                                  samples=samples, error_norm=error_norm)))
             max_err_ind = np.argmax(errors)
             max_err, max_err_mu = errors[max_err_ind], mus[max_err_ind]
 
@@ -138,17 +139,22 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
             max_err_mus.append(max_err_mu)
             logger.info('Maximum error after {} extensions: {} (mu = {})'.format(extensions, max_err, max_err_mu))
 
-            if target_error is not None and max_err <= target_error:
-                logger.info('Reached maximal error on snapshots of {} <= {}'.format(max_err, target_error))
+            if atol is not None and max_err <= atol:
+                logger.info('Absolute error tolerance ({}) reached! Stoping extension loop.'.format(atol))
                 break
 
-            logger.info('Extending with snapshot for mu = {}'.format(max_err_mu))
-            U = discretization.solve(max_err_mu)
-            try:
-                basis, extension_data = extension_algorithm(basis, U)
-            except ExtensionError:
-                logger.info('Extension failed. Stopping now.')
+            if rtol is not None and max_err / max_errs[0] <= rtol:
+                logger.info('Relative error tolerance ({}) reached! Stoping extension loop.'.format(rtol))
                 break
+
+            with logger.block('Computing solution snapshot for mu = {} ...'.format(max_err_mu)):
+                U = discretization.solve(max_err_mu)
+            with logger.block('Extending basis with solution snapshot ...'):
+                try:
+                    basis, extension_data = extension_algorithm(basis, U)
+                except ExtensionError:
+                    logger.info('Extension failed. Stopping now.')
+                    break
             extensions += 1
             if 'hierarchic' not in extension_data:
                 logger.warn('Extension algorithm does not report if extension was hierarchic. Assuming it was\'nt ..')
@@ -160,9 +166,9 @@ def greedy(discretization, reductor, samples, initial_basis=None, use_estimator=
 
             if max_extensions is not None and extensions >= max_extensions:
                 logger.info('Maximum number of {} extensions reached.'.format(max_extensions))
-                logger.info('Reducing once more ...')
-                rd, rc, reduction_data = reductor(discretization, basis) if not hierarchic \
-                    else reductor(discretization, basis, extends=(rd, rc, reduction_data))
+                with logger.block('Reducing once more ...'):
+                    rd, rc, reduction_data = reductor(discretization, basis) if not hierarchic \
+                        else reductor(discretization, basis, extends=(rd, rc, reduction_data))
                 break
 
         tictoc = time.time() - tic
@@ -184,7 +190,7 @@ def _estimate(rd=None, d=None, rc=None, samples=None, error_norm=None):
         errors = [(d.solve(mu) - rc.reconstruct(rd.solve(mu))).l2_norm() for mu in samples]
     # most error_norms will return an array of length 1 instead of a number, so we extract the numbers
     # if necessary
-    errors = map(lambda x: x[0] if hasattr(x, '__len__') else x, errors)
+    errors = [x[0] if hasattr(x, '__len__') else x for x in errors]
     max_err_ind = np.argmax(errors)
 
     return errors[max_err_ind], samples[max_err_ind]

@@ -1,13 +1,13 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
 import os
 import sqlite3
 import datetime
 import base64
-import xmlrpclib
-from SimpleXMLRPCServer import SimpleXMLRPCServer
+import xmlrpc.client
+from xmlrpc.server import SimpleXMLRPCServer
 
 from pymor.core.cache import CacheRegion
 from pymor.core.interfaces import BasicInterface
@@ -19,7 +19,7 @@ class NetworkFilesystemRegion(CacheRegion):
     persistent = True
 
     def __init__(self, server_path, secret=''):
-        self.server = xmlrpclib.ServerProxy(server_path)
+        self.server = xmlrpc.client.ServerProxy(server_path)
         self.secret = secret
 
     def get(self, key):
@@ -28,7 +28,7 @@ class NetworkFilesystemRegion(CacheRegion):
         assert len(response) == 2 and isinstance(response[0], bool) and isinstance(response[1], str)
         if response[0]:
             file_path = response[1]
-            with open(file_path) as f:
+            with open(file_path, 'rb') as f:
                 value = load(f)
             return True, value
         else:
@@ -39,7 +39,7 @@ class NetworkFilesystemRegion(CacheRegion):
         response = self.server.set(self.secret, key)
         assert len(response) == 2 and isinstance(response[0], bool) and isinstance(response[1], str)
         if response[0]:
-            with open(response[1], 'w') as f:
+            with open(response[1], 'wb') as f:
                 dump(value, f)
                 file_size = f.tell()
             response = self.server.set_finished(self.secret, key, file_size)

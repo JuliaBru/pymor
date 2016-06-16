@@ -1,8 +1,7 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
-from __future__ import absolute_import, division, print_function
 import time
 import numpy as np
 import functools
@@ -54,7 +53,7 @@ class Timer(object):
 
     def __exit__(self, type_, value, traceback):
         self.stop()
-        self._log('Execution of %s took %f (s)', self._section, self.dt)
+        self._log.info('Execution of %s took %f (s)', self._section, self.dt)
 
     def __call__(self, func):
         func.decorated = self
@@ -68,5 +67,5 @@ class Timer(object):
 
 def busywait(amount):
     arr = np.arange(1000)
-    for _ in xrange(amount):
+    for _ in range(amount):
         np.random.shuffle(arr)

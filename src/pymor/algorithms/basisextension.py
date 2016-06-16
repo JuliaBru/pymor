@@ -1,5 +1,5 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
 """This module contains algorithms for extending a reduced given basis by a new vector.
@@ -19,8 +19,6 @@ If the basis extension fails, e.g. because the new vector is not linearly
 independent from the basis, an :class:`~pymor.core.exceptions.ExtensionError`
 exception is raised.
 """
-
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -66,7 +64,7 @@ def trivial_basis_extension(basis, U, copy_basis=True, copy_U=True):
 
     old_basis_length = len(basis)
     remove = set()
-    for i in xrange(len(U)):
+    for i in range(len(U)):
         if np.any(almost_equal(U, basis, U_ind=i)):
             remove.add(i)
 

@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 #
 # Extended by Julia Brunken (InstationaryDiscretizationNDim)
-
-from __future__ import absolute_import, division, print_function
 
 from itertools import chain
 
@@ -28,7 +26,7 @@ class DiscretizationBase(DiscretizationInterface):
         self.operators = FrozenDict(operators)
         self.functionals = FrozenDict(functionals)
         self.vector_operators = FrozenDict(vector_operators)
-        self.linear = all(op is None or op.linear for op in chain(operators.itervalues(), functionals.itervalues()))
+        self.linear = all(op is None or op.linear for op in chain(operators.values(), functionals.values()))
         self.products = products
         self.estimator = estimator
         self.visualizer = visualizer
@@ -36,7 +34,7 @@ class DiscretizationBase(DiscretizationInterface):
         self.name = name
 
         if products:
-            for k, v in products.iteritems():
+            for k, v in products.items():
                 setattr(self, '{}_product'.format(k), v)
                 setattr(self, '{}_norm'.format(k), induced_norm(v))
 

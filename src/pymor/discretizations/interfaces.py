@@ -1,8 +1,6 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-
-from __future__ import absolute_import, division, print_function
 
 from pymor.core.cache import CacheableInterface, cached
 from pymor.core.interfaces import abstractmethod
@@ -48,7 +46,6 @@ class DiscretizationInterface(CacheableInterface, Parametric):
         """Perform the actual solving."""
         pass
 
-    @cached
     def solve(self, mu=None, **kwargs):
         """Solve for the |Parameter| `mu`.
 
@@ -63,7 +60,8 @@ class DiscretizationInterface(CacheableInterface, Parametric):
         -------
         The solution given as a |VectorArray|.
         """
-        return self._solve(mu, **kwargs)
+        mu = self.parse_parameter(mu)
+        return self.cached_method_call(self._solve, mu=mu, **kwargs)
 
     def estimate(self, U, mu=None):
         """Estimate the discretization error for a given solution.

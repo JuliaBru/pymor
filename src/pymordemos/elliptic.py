@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
 """Simple demonstration of solving the Poisson equation in 2D using pyMOR's builtin discretizations.
@@ -27,8 +27,6 @@ Options:
 
     --rect       Use RectGrid instead of TriaGrid.
 """
-
-from __future__ import absolute_import, division, print_function
 
 import math as m
 from docopt import docopt

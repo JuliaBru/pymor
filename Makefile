@@ -4,11 +4,11 @@
 all: 
 
 # PyPI wants ReStructured text
-README.txt: README.markdown
+README.txt: README.md
 	pandoc -f markdown -t plain $< > $@
 
 # I want HTML (to preview the formatting :))
-README.html: README.markdown
+README.html: README.md
 	pandoc -f markdown -t html $< > $@
 
 README: README.txt README.html
@@ -21,6 +21,9 @@ flake8:
 
 test:
 	python setup.py test
+
+fasttest:
+	PYTEST_MARKER="not slow" python setup.py test
 
 full-test:
 	@echo
@@ -37,3 +40,8 @@ full-test:
 	
 doc:
 	PYTHONPATH=${PWD}/src/:${PYTHONPATH} make -C docs html
+
+3to2:
+	./3to2.sh src/
+	./3to2.sh docs/
+	python setup.py build_ext -i

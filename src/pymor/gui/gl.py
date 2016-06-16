@@ -1,8 +1,6 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-#
-# Contributors: Andreas Buhr <andreas@andreasbuhr.de>
 
 """ This module provides a widget for displaying patch plots of
 scalar data assigned to 2D-grids using OpenGL. This widget is not
@@ -11,18 +9,21 @@ intended to be used directly. Instead, use
 :class:`~pymor.gui.qt.PatchVisualizer`.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import math as m
 
 import numpy as np
 
 try:
-    from PySide.QtOpenGL import QGLWidget
     from PySide.QtGui import QSizePolicy, QPainter, QFontMetrics
     HAVE_PYSIDE = True
 except ImportError:
     HAVE_PYSIDE = False
+
+try:
+    from PySide.QtOpenGL import QGLWidget
+    HAVE_QTOPENGL = True
+except ImportError:
+    HAVE_QTOPENGL = False
 
 try:
     import OpenGL.GL as gl
@@ -30,7 +31,7 @@ try:
 except ImportError:
     HAVE_GL = False
 
-HAVE_ALL = HAVE_PYSIDE and HAVE_GL
+HAVE_ALL = HAVE_PYSIDE and HAVE_QTOPENGL and HAVE_GL
 
 
 if HAVE_ALL:
@@ -265,7 +266,7 @@ if HAVE_ALL:
             bar_start = -1 + self.text_height / self.height() * 2
             bar_height = (1 - 2 * self.text_height / self.height()) * 2
             steps = 40
-            for i in xrange(steps + 1):
+            for i in range(steps + 1):
                 y = i * (1 / steps)
                 # gl.glColor(y, 0, 0)
                 gl.glVertex(-0.5, (bar_height*y + bar_start), y)

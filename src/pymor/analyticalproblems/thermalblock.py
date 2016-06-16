@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-#
-# Contributors: Michael Laier <m_laie01@uni-muenster.de>
-
-from __future__ import absolute_import, division, print_function
 
 from itertools import product
 
@@ -64,9 +60,9 @@ class ThermalBlockProblem(EllipticProblem):
                                                  name='diffusion_{}_{}'.format(x, y))
 
         diffusion_functions = tuple(ThermalBlockDiffusionFunction(x, y, num_blocks[0], num_blocks[1])
-                                    for x, y in product(xrange(num_blocks[0]), xrange(num_blocks[1])))
+                                    for x, y in product(range(num_blocks[0]), range(num_blocks[1])))
         parameter_functionals = tuple(parameter_functional_factory(x, y)
-                                      for x, y in product(xrange(num_blocks[0]), xrange(num_blocks[1])))
+                                      for x, y in product(range(num_blocks[0]), range(num_blocks[1])))
 
         super(ThermalBlockProblem, self).__init__(domain, rhs, diffusion_functions, parameter_functionals,
                                                   name='ThermalBlock')

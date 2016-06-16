@@ -1,5 +1,5 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
 
 """ This module provides a widgets for displaying plots of
@@ -8,10 +8,6 @@ scalar data assigned to one- and two-dimensional grids using
 Instead, use :meth:`~pymor.gui.qt.visualize_matplotlib_1d` or
 :class:`~pymor.gui.qt.Matplotlib1DVisualizer`.
 """
-
-from __future__ import absolute_import, division, print_function
-
-from itertools import izip
 
 import numpy as np
 
@@ -65,7 +61,7 @@ if HAVE_ALL:
                 xs = centers
             else:
                 xs = np.repeat(centers, 2)[1:-1]
-            for i in xrange(count):
+            for i in range(count):
                 if separate_plots:
                     figure.add_subplot(int(count / 2) + count % 2, 2, i + 1)
                     axes = figure.gca()
@@ -88,7 +84,7 @@ if HAVE_ALL:
             self.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
 
         def set(self, U, ind):
-            for l, u in izip(self.lines, U):
+            for l, u in zip(self.lines, U):
                 if self.codim == 1:
                     if self.periodic:
                         l.set_ydata(np.concatenate((u[ind], [u[ind][0]])))
@@ -121,7 +117,9 @@ if HAVE_ALL:
             self.setMinimumSize(300, 300)
             self.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
 
-        def set(self, U):
+        def set(self, U, vmin=None, vmax=None):
+            self.vmin = self.vmin if vmin is None else vmin
+            self.vmax = self.vmax if vmax is None else vmax
             U = np.array(U)
             f = self.figure
             f.clear()

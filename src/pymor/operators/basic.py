@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-#
-# Contributors: Michael Laier <m_laie01@uni-muenster.de>
-
-from __future__ import absolute_import, division, print_function
 
 from numbers import Number
 
@@ -127,6 +123,7 @@ class OperatorBase(OperatorInterface):
                 raise e
         else:
             from pymor.algorithms.newton import newton
+            from pymor.core.exceptions import NewtonError
             assert V.check_ind(ind)
 
             options = self.solver_options
@@ -142,12 +139,15 @@ class OperatorBase(OperatorInterface):
                 options = {}
             options['least_squares'] = least_squares
 
-            ind = (range(len(V)) if ind is None else
+            ind = (list(range(len(V))) if ind is None else
                    [ind] if isinstance(ind, Number) else
                    ind)
             R = V.empty(reserve=len(ind))
             for i in ind:
-                R.append(newton(self, V.copy(i), **options)[0])
+                try:
+                    R.append(newton(self, V.copy(i), **options)[0])
+                except NewtonError as e:
+                    raise InversionError(e)
             return R
 
     def apply_inverse_adjoint(self, U, ind=None, mu=None, source_product=None, range_product=None,
@@ -173,7 +173,7 @@ class OperatorBase(OperatorInterface):
             # use generic solver for the adjoint operator
             from pymor.operators.constructions import AdjointOperator
             options = {'inverse': self.solver_options.get('inverse_adjoint') if self.solver_options else None}
-            adjoint_op = AdjointOperator(self.with_(solver_options=options), with_apply_inverse=False)
+            adjoint_op = AdjointOperator(self, with_apply_inverse=False, solver_options=options)
             return adjoint_op.apply_inverse(U, ind=ind, mu=mu, least_squares=least_squares)
 
     def as_vector(self, mu=None):
@@ -196,7 +196,10 @@ class OperatorBase(OperatorInterface):
                 if range_basis is None:
                     return self
                 else:
-                    V = self.apply_adjoint(range_basis, range_product=product)
+                    try:
+                        V = self.apply_adjoint(range_basis, range_product=product)
+                    except NotImplementedError:
+                        return ProjectedOperator(self, range_basis, None, product, name=name)
                     if self.source.type == NumpyVectorArray:
                         from pymor.operators.numpy import NumpyMatrixOperator
                         return NumpyMatrixOperator(V.data, name=name)
@@ -262,8 +265,8 @@ class ProjectedOperator(OperatorBase):
         self.solver_options = solver_options
         self.name = name
         self.operator = operator
-        self.source_basis = source_basis.copy()
-        self.range_basis = range_basis.copy()
+        self.source_basis = source_basis.copy() if source_basis is not None else None
+        self.range_basis = range_basis.copy() if range_basis is not None else None
         self.linear = operator.linear
         self.product = product
 
@@ -296,9 +299,9 @@ class ProjectedOperator(OperatorBase):
         assert dim_range is None or self.range_basis is not None, 'not implemented'
         name = name or '{}_projected_to_subbasis'.format(self.name)
         source_basis = self.source_basis if dim_source is None \
-            else self.source_basis.copy(ind=range(dim_source))
+            else self.source_basis.copy(ind=list(range(dim_source)))
         range_basis = self.range_basis if dim_range is None \
-            else self.range_basis.copy(ind=range(dim_range))
+            else self.range_basis.copy(ind=list(range(dim_range)))
         return ProjectedOperator(self.operator, range_basis, source_basis, product=None,
                                  solver_options=self.solver_options, name=name)
 

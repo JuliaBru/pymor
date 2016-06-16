@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # This file is part of the pyMOR project (http://www.pymor.org).
-# Copyright Holders: Rene Milk, Stephan Rave, Felix Schindler
+# Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-#
-# Contributors: Michael Laier <m_laie01@uni-muenster.de>
 
 """Simple demonstration of solving the Poisson equation in 2D on a circular sector
 domain of radius 1 using an unstructured mesh.
@@ -26,8 +24,6 @@ Options:
 
     --fv         Use finite volume discretization instead of finite elements.
 """
-
-from __future__ import absolute_import, division, print_function
 
 from docopt import docopt
 import numpy as np
