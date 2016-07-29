@@ -116,9 +116,10 @@ class ExplicitEulerTimeStepper(TimeStepperInterface):
         self.nt = nt
 
     def solve(self, initial_time, end_time, initial_data, operator, rhs=None, mass=None, mu=None, num_values=None):
-        if mass is not None:
-            raise NotImplementedError
-        return explicit_euler(operator, rhs, initial_data, initial_time, end_time, self.nt, mu, num_values)
+        #if mass is not None:
+        #    raise NotImplementedError
+        #return explicit_euler(operator, rhs, initial_data, initial_time, end_time, self.nt, mu, num_values)
+        return explicit_euler_m(operator, rhs, mass, initial_data, initial_time, end_time, self.nt, mu, num_values)
 
 
 class ExplicitEulerTimeStepperNDim(TimeStepperInterface):
@@ -140,9 +141,7 @@ class ExplicitEulerTimeStepperNDim(TimeStepperInterface):
         self.nt = nt
 
     def solve(self, sysdim, initial_time, end_time, initial_data, operator, rhs=None, mass=None, mu=None, num_values=None):
-        if mass is not None:
-            raise NotImplementedError
-        return explicit_euler_ndim(sysdim, operator, rhs, initial_data, initial_time, end_time, self.nt, mu, num_values)
+        return explicit_euler_ndim(sysdim, operator, rhs, mass, initial_data, initial_time, end_time, self.nt, mu, num_values)
 
 
 def implicit_euler(A, F, M, U0, t0, t1, nt, mu=None, num_values=None, solver_options='operator'):
@@ -261,11 +260,75 @@ def explicit_euler(A, F, U0, t0, t1, nt, mu=None, num_values=None):
     return R
 
 
-def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
+def explicit_euler_m(A, F, M, U0, t0, t1, nt, mu=None, num_values=None):
+    assert isinstance(A, OperatorInterface)
+    assert isinstance(F, (type(None), OperatorInterface, VectorArrayInterface))
+    assert isinstance(M, (type(None), OperatorInterface))
+    assert A.source == A.range
+    num_values = num_values or nt + 1
+    dt = (t1 - t0) / nt
+    DT = (t1 - t0) / (num_values - 1)
+
+    if F is None:
+        F_time_dep = False
+    elif isinstance(F, OperatorInterface):
+        assert F.range.dim == 1
+        assert F.source == A.range
+        F_time_dep = F.parametric and '_t' in F.parameter_type
+        if not F_time_dep:
+            F_ass = F.as_vector(mu)
+    else:
+        assert len(F) == 1
+        assert F in A.range
+        F_time_dep = False
+        F_ass = F
+
+    if M is None:
+        from pymor.operators.constructions import IdentityOperator
+        M = IdentityOperator(A.source)
+
+    assert A.source == M.source == M.range
+    assert not M.parametric
+    assert U0 in A.source
+    assert len(U0) == 1
+
+    A_time_dep = A.parametric and '_t' in A.parameter_type
+
+    R = A.source.empty(reserve=nt+1)
+    R.append(U0)
+
+    if not A_time_dep:
+        A = A.assemble(mu)
+
+    t = t0
+    mu['_t'] = t
+    U = U0.copy()
+
+    for n in range(nt):
+        rhs = - A.apply(U,mu=mu)
+        if F_time_dep:
+            F_ass = F.as_vector(mu)
+        if F:
+            rhs += F_ass
+        U.axpy(dt,M.apply_inverse(rhs, mu=mu))
+        t += dt
+        mu['_t'] = t
+        if np.max(np.max(U.data)) > 100:
+            raise ValueError
+        while t - t0 + (min(dt, DT) * 0.5) >= len(R) * DT:
+            R.append(U)
+
+    return R
+
+
+
+def explicit_euler_ndim(sysdim, A, F, M, U0, t0, t1, nt, mu=None, num_values=None):
     logger = getLogger('pymor.algorithms.timestepping.explicit_euler_ndim')
     assert isinstance(A, OperatorInterface)
+    assert isinstance(F, (type(None), OperatorInterface, VectorArrayInterface))
+    assert isinstance(M, (type(None), OperatorInterface))
 
-    assert A.source.dim*sysdim == A.range.dim
+    assert A.source.dim == A.range.dim
     num_values = num_values or nt + 1
     proz = 0
 
@@ -280,6 +343,10 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
             for j in range(sysdim):
                 mu['komp'] = j
                 F_ass[j] = F.as_vector(mu)
+
+    if M is None:
+        from pymor.operators.constructions import IdentityOperator
+        M = IdentityOperator(A.source)
 
     for j in range(sysdim):
         assert isinstance(U0[j], VectorArrayInterface)
@@ -310,7 +377,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
             R[j].append(U[j])
 
     if F is None:
-        for n in xrange(nt):
+        for n in range(nt):
             t += dt
             if n/nt > proz:
                 logger.info('{} %'.format(proz*100))
@@ -323,7 +390,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
             for j in range(sysdim):
                 if np.max(U[j].data) > 100:
                     raise ValueError
-                U[j].axpy(dt, -Ua[j])
+                U[j].axpy(dt,M.apply_inverse( -Ua[j]))
 
             while t - t0 + (min(dt, DT) * 0.5) >= len(R[0]) * DT:
                 tvec = np.append(tvec, t)
@@ -331,7 +398,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
                     R[j].append(U[j])
 
     else:
-        for n in xrange(nt):
+        for n in range(nt):
             t += dt
             if n/nt > proz:
                 logger.info('{} %'.format(proz*100))
@@ -345,7 +412,7 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
             Ua = A.apply(U.copy(), mu=mu)
 
             for j in range(sysdim):
-                U[j].axpy(dt, F_ass[j] - Ua[j])
+                U[j].axpy(dt, M.apply_inverse(F_ass[j] - Ua[j]))
                 if np.max(U[j].data) > 100:
                     raise ValueError
 
@@ -353,5 +420,8 @@ def explicit_euler_ndim(sysdim, A, F, U0, t0, t1, nt, mu=None, num_values=None):
                 tvec = np.append(tvec, t)
                 for j in range(sysdim):
                     R[j].append(U[j])
+
+
+
 
     return R, tvec
