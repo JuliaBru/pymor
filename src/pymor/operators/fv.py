@@ -2,13 +2,12 @@
 # This file is part of the pyMOR project (http://www.pymor.org).
 # Copyright 2013-2016 pyMOR developers and contributors. All rights reserved.
 # License: BSD 2-Clause License (http://opensource.org/licenses/BSD-2-Clause)
-<<<<<<< HEAD
 #
 # Contributors: Michael Laier <m_laie01@uni-muenster.de>
 #
 # Extended by Julia Brunken (LinearGodunovUpwindFlux, AdvectionOperatorNDim, godunov_upwind_operator
-=======
->>>>>>> official/master
+
+
 
 """ This module provides some operators for finite volume discretizations."""
 
@@ -532,7 +531,7 @@ class AdvectionOperatorNDim(OperatorBase):
         self.name = name
         self.build_parameter_type(inherits=(numerical_flux, dirichlet_data))
         self.source = NumpyVectorSpace(grid.size(0))
-        self.range = NumpyVectorSpace(grid.size(0)*self.sysdim)
+        self.range = NumpyVectorSpace(grid.size(0))
         self.add_with_arguments = self.add_with_arguments.union('numerical_flux_{}'.format(arg)
                                                         for arg in numerical_flux.with_arguments)
 
@@ -633,7 +632,7 @@ class AdvectionOperatorNDim(OperatorBase):
         for f in F_edge:
             f[:,BOUNDARIES, 1] = f[:,BOUNDARIES, 0]
         if bi.has_dirichlet:
-            for f, f_d in izip(F_edge, F_dirichlet):
+            for f, f_d in zip(F_edge, F_dirichlet):
                 f[:,DIRICHLET_BOUNDARIES, 1] = f_d
 
         NUM_FLUX = self.numerical_flux.evaluate_stage2(F_edge, UNIT_OUTER_NORMALS, VOLS1, mu)

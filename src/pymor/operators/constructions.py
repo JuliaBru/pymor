@@ -220,6 +220,218 @@ class LincombOperator(OperatorBase):
         return d
 
 
+class LinearSystemOperator(OperatorBase):
+    """An operator representing a linear system of arbitrary |Operators|.
+
+    Parameters
+    ----------
+    operators
+        List of |Operators| whose linear combination is formed.
+    coefficient matrices
+        A list of linear coefficients. A linear coefficient can
+        either be a fixed number or a |ParameterFunctional|.
+    name
+        Name of the operator.
+    """
+
+    def __init__(self, sysdim, operators, coeff_matr, solver_options=None, name=None):
+        assert len(operators) > 0
+        assert len(operators) == len(coeff_matr)
+        assert all(isinstance(op, OperatorInterface) for op in operators)
+        #assert all(isinstance(c, (ParameterFunctionalInterface, _INDEXTYPES)) for c in coefficients)
+        assert all(isinstance(c, NumpyVectorArray) for c in coeff_matr)
+        assert all(c.data.shape == (sysdim,sysdim) for c in coeff_matr)
+        assert all(op.source == operators[0].source for op in operators[1:])
+        assert all(op.range == operators[0].range for op in operators[1:])
+        self.sysdim = sysdim
+        self.source = operators[0].source
+        self.range = operators[0].range
+        self.operators = tuple(operators)
+        self.linear = all(op.linear for op in operators)
+        self.coeff_matr = tuple(coeff_matr)
+        self.solver_options = solver_options
+        self.name = name
+        self.build_parameter_type(inherits=list(operators))  #+ [f for f in coefficients if isinstance(f, ParameterFunctionalInterface)])
+        if self.parametric:
+            raise NotImplementedError
+        self._try_assemble = not self.parametric
+
+    def evaluate_coefficients(self, mu):
+        """Compute the linear coefficients of the linear combination for a given parameter.
+
+        Parameters
+        ----------
+        mu
+            |Parameter| for which to compute the linear coefficients.
+
+        Returns
+        -------
+        List of linear coefficients.
+        """
+        mu = self.parse_parameter(mu)
+        return [c.evaluate(mu) if hasattr(c, 'evaluate') else c for c in self.coeff_matr]
+
+    def apply(self, U, ind=None, mu=None):
+        assert isinstance(U,dict)
+
+        #if hasattr(self, '_assembled_operator'):
+        #    if self._defaults_sid == defaults_sid():
+        #        return self._assembled_operator.apply(U, ind=ind)
+        #    else:
+        #        return self.assemble().apply(U, ind=ind)
+        #elif self._try_assemble:
+        #    return self.assemble().apply(U, ind=ind)
+
+        R = dict.fromkeys(range(self.sysdim))
+        H = np.empty([self.sysdim, self.source.dim])
+        S = np.zeros([self.sysdim, self.source.dim])
+        for op, c in zip(self.operators, self.coeff_matr):
+            for j in range(self.sysdim):
+                H[j,:] = op.apply(U[j], ind=ind, mu=mu).data
+            S += c.data.dot(H)
+        for j in range(self.sysdim):
+            R[j] = NumpyVectorArray(S[j,:])
+        return R
+
+    def apply2(self, V, U, U_ind=None, V_ind=None, mu=None, product=None):
+        if hasattr(self, '_assembled_operator'):
+            if self._defaults_sid == defaults_sid():
+                return self._assembled_operator.apply2(V, U, V_ind=V_ind, U_ind=U_ind, product=product)
+            else:
+                return self.assemble().apply2(V, U, V_ind=V_ind, U_ind=U_ind, product=product)
+        elif self._try_assemble:
+            return self.assemble().apply2(V, U, V_ind=V_ind, U_ind=U_ind, product=product)
+        coeffs = self.evaluate_coefficients(mu)
+        R = self.operators[0].apply2(V, U, V_ind=V_ind, U_ind=U_ind, mu=mu, product=product)
+        R *= coeffs[0]
+        for op, c in zip(self.operators[1:], coeffs[1:]):
+            R += c * op.apply2(V, U, V_ind=V_ind, U_ind=U_ind, mu=mu, product=product)
+        return R
+
+    def pairwise_apply2(self, V, U, U_ind=None, V_ind=None, mu=None, product=None):
+        if hasattr(self, '_assembled_operator'):
+            if self._defaults_sid == defaults_sid():
+                return self._assembled_operator.pairwise_apply2(V, U, V_ind=V_ind, U_ind=U_ind, product=product)
+            else:
+                return self.assemble().pairwise_apply2(V, U, V_ind=V_ind, U_ind=U_ind, product=product)
+        elif self._try_assemble:
+            return self.assemble().pairwise_apply2(V, U, V_ind=V_ind, U_ind=U_ind, product=product)
+        coeffs = self.evaluate_coefficients(mu)
+        R = self.operators[0].pairwise_apply2(V, U, V_ind=V_ind, U_ind=U_ind, mu=mu, product=product)
+        R *= coeffs[0]
+        for op, c in zip(self.operators[1:], coeffs[1:]):
+            R += c * op.pairwise_apply2(V, U, V_ind=V_ind, U_ind=U_ind, mu=mu, product=product)
+        return R
+
+    def apply_adjoint(self, U, ind=None, mu=None, source_product=None, range_product=None):
+        if hasattr(self, '_assembled_operator'):
+            if self._defaults_sid == defaults_sid():
+                return self._assembled_operator.apply_adjoint(U, ind=ind, source_product=source_product,
+                                                              range_product=range_product)
+            else:
+                return self.assemble().apply_adjoint(U, ind=ind, source_product=source_product,
+                                                     range_product=range_product)
+        elif self._try_assemble:
+            return self.assemble().apply_adjoint(U, ind=ind, source_product=source_product,
+                                                 range_product=range_product)
+        coeffs = self.evaluate_coefficients(mu)
+        R = self.operators[0].apply_adjoint(U, ind=ind, mu=mu, source_product=source_product,
+                                            range_product=range_product)
+        R.scal(coeffs[0])
+        for op, c in zip(self.operators[1:], coeffs[1:]):
+            R.axpy(c, op.apply_adjoint(U, ind=ind, mu=mu, source_product=source_product,
+                                       range_product=range_product))
+        return R
+
+    def assemble(self, mu=None):
+        return self
+        # if hasattr(self, '_assembled_operator'):
+        #     if self._defaults_sid == defaults_sid():
+        #         return self._assembled_operator
+        #     else:
+        #         self.logger.warn('Re-assembling since state of global defaults has changed.')
+        # operators = [op.assemble(mu) for op in self.operators]
+        # coefficients = self.evaluate_coefficients(mu)
+        # op = operators[0].assemble_lincomb(operators, coefficients, solver_options=self.solver_options,
+        #                                    name=self.name + '_assembled')
+        # if not self.parametric:
+        #     if op:
+        #         self._assembled_operator = op
+        #         self._defaults_sid = defaults_sid()
+        #         return op
+        #     else:
+        #         self._try_assemble = False
+        #         return self
+        # elif op:
+        #     return op
+        # else:
+        #     return LincombOperator(operators, coefficients, solver_options=self.solver_options,
+        #                            name=self.name + '_assembled')
+
+    def jacobian(self, U, mu=None):
+        if self.linear:
+            return self.assemble(mu)
+        if hasattr(self, '_assembled_operator'):
+            if self._defaults_sid == defaults_sid():
+                return self._assembled_operator.jacobian(U)
+            else:
+                return self.assemble().jacobian(U)
+        elif self._try_assemble:
+            return self.assemble().jacobian(U)
+        jacobians = [op.jacobian(U, mu) for op in self.operators]
+        coefficients = self.evaluate_coefficients(mu)
+        options = self.solver_options.get('jacobian') if self.solver_options else None
+        jac = jacobians[0].assemble_lincomb(jacobians, coefficients, solver_options=options,
+                                            name=self.name + '_jacobian')
+        if jac is None:
+            return LincombOperator(jacobians, coefficients, solver_options=options,
+                                   name=self.name + '_jacobian')
+        else:
+            return jac
+
+    def as_vector(self, mu=None):
+        if hasattr(self, '_assembled_operator'):
+            if self._defaults_sid == defaults_sid():
+                return self._assembled_operator.as_vector()
+            else:
+                return self.assemble().as_vector()
+        elif self._try_assemble:
+            return self.assemble().as_vector()
+        coefficients = np.array(self.evaluate_coefficients(mu))
+        vectors = [op.as_vector(mu) for op in self.operators]
+        R = vectors[0]
+        R.scal(coefficients[0])
+        for c, v in zip(coefficients[1:], vectors[1:]):
+            R.axpy(c, v)
+        return R
+
+    def projected(self, range_basis, source_basis, product=None, name=None):
+        if hasattr(self, '_assembled_operator'):
+            if self._defaults_sid == defaults_sid():
+                return self._assembled_operator.projected(range_basis, source_basis, product, name)
+            else:
+                return self.assemble().projected(range_basis, source_basis, product, name)
+        elif self._try_assemble:
+            return self.assemble().projected(range_basis, source_basis, product, name)
+        proj_operators = [op.projected(range_basis=range_basis, source_basis=source_basis, product=product)
+                          for op in self.operators]
+        return self.with_(operators=proj_operators, name=name or self.name + '_projected')
+
+    def projected_to_subbasis(self, dim_range=None, dim_source=None, name=None):
+        """See :meth:`NumpyMatrixOperator.projected_to_subbasis`."""
+        assert dim_source is None or dim_source <= self.source.dim
+        assert dim_range is None or dim_range <= self.range.dim
+        proj_operators = [op.projected_to_subbasis(dim_range=dim_range, dim_source=dim_source)
+                          for op in self.operators]
+        return self.with_(operators=proj_operators, name=name or '{}_projected_to_subbasis'.format(self.name))
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        if '_assembled_operator' in d:
+            del d['_assembled_operator']
+        return d
+
+
 class Concatenation(OperatorBase):
     """|Operator| representing the concatenation of two |Operators|.
 

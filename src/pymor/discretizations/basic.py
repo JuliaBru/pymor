@@ -343,6 +343,9 @@ class InstationaryDiscretization(DiscretizationBase):
 
         mu['_t'] = 0
         U0 = self.initial_data.as_vector(mu)
+
+
+
         return self.time_stepper.solve(operator=self.operator, rhs=self.rhs, initial_data=U0, mass=self.mass,
                                        initial_time=0, end_time=self.T, mu=mu, num_values=self.num_values)
 
@@ -490,14 +493,15 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         self.mass = mass
         self.time_stepper = time_stepper
         self.num_values = num_values
-        self.build_parameter_type(local_type=({'komp': 0,
-                                               'm': 0,
+        self.build_parameter_type(local_type=({#'komp': 0,
+                                               #'m': 0,
                                                'Minv': (sysdim, sysdim),
-                                               'MinvS': (sysdim, sysdim),
-                                               'MinvD': (sysdim, sysdim),
+                                               #'MinvS': (sysdim, sysdim),
+                                               #'MinvD': (sysdim, sysdim),
                                                'basis_werte': (1, sysdim),
-                                               'basis_rand_l': (sysdim,),
-                                               'basis_rand_r': (sysdim,)}),
+                                               #'basis_rand_l': (sysdim,),
+                                               #'basis_rand_r': (sysdim,)
+                                                }),
                                   local_global=True,
                                   inherits=(operator, rhs, mass,),
                                   provides={'_t': 0})
@@ -541,6 +545,8 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         U0=dict.fromkeys(range(self.sysdim))
         for j in range(self.sysdim):
             U0[j] = self.initial_data[j].as_vector(mu)
+
+
 
         return self.time_stepper.solve(self.sysdim, operator=self.operator, rhs=self.rhs, initial_data=U0, mass=self.mass,
                                        initial_time=0, end_time=self.T, mu=mu, num_values=self.num_values)
