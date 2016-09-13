@@ -185,6 +185,7 @@ def discretize_elliptic_cg(analytical_problem, diameter=None, domain_discretizer
 
     return discretization, {'grid': grid, 'boundary_info': boundary_info}
 
+
 def discretize_elliptic_cg_ndim(analytical_problem, sysdim, diameter=None, domain_discretizer=None,
                            grid=None, boundary_info=None):
     """Discretizes an |EllipticProblem| using finite elements.

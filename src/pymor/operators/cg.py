@@ -978,7 +978,6 @@ class AdvectionOperatorP1(NumpyMatrixBasedOperator):
 
         q, w = g.reference_element.quadrature(order=2)
 
-
         self.logger.info('Calulate gradients of shape functions transformed by reference map ...')
         SF_GRADS = np.einsum('eij,pj->epi', g.jacobian_inverse_transposed(0), SF_GRAD)
         # SF_GRADS(element, function, component)

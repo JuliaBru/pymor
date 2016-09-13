@@ -342,9 +342,6 @@ class InstationaryDiscretization(DiscretizationBase):
 
         mu['_t'] = 0
         U0 = self.initial_data.as_vector(mu)
-
-
-
         return self.time_stepper.solve(operator=self.operator, rhs=self.rhs, initial_data=U0, mass=self.mass,
                                        initial_time=0, end_time=self.T, mu=mu, num_values=self.num_values)
 
@@ -544,8 +541,5 @@ class InstationaryDiscretizationNDim(DiscretizationBase):
         U0=dict.fromkeys(range(self.sysdim))
         for j in range(self.sysdim):
             U0[j] = self.initial_data[j].as_vector(mu)
-
-
-
         return self.time_stepper.solve(self.sysdim, operator=self.operator, rhs=self.rhs, initial_data=U0, mass=self.mass,
                                        initial_time=0, end_time=self.T, mu=mu, num_values=self.num_values)

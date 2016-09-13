@@ -153,7 +153,6 @@ def implicit_euler(A, F, M, U0, t0, t1, nt, mu=None, num_values=None, solver_opt
     dt = (t1 - t0) / nt
     DT = (t1 - t0) / (num_values - 1)
 
-
     if F is None:
         F_time_dep = False
     elif isinstance(F, OperatorInterface):

@@ -13,6 +13,7 @@
 
 import numpy as np
 from scipy.sparse import coo_matrix, csc_matrix, dia_matrix
+
 from pymor.core.defaults import defaults
 from pymor.core.interfaces import ImmutableInterface, abstractmethod
 from pymor.functions.interfaces import FunctionInterface
@@ -21,7 +22,7 @@ from pymor.grids.boundaryinfos import SubGridBoundaryInfo
 from pymor.grids.subgrid import SubGrid
 from pymor.operators.basic import OperatorBase
 from pymor.operators.constructions import Concatenation, ComponentProjection
-from pymor.operators.numpy import NumpyMatrixBasedOperator
+from pymor.operators.numpy import NumpyMatrixBasedOperator, NumpyMatrixOperator
 from pymor.parameters.base import Parametric
 from pymor.tools.inplace import iadd_masked, isub_masked
 from pymor.tools.quadratures import GaussQuadratures
@@ -364,7 +365,7 @@ class NonlinearAdvectionOperator(OperatorBase):
 
         return NumpyVectorArray(R)
 
-def jacobian(self, U, mu=None):
+    def jacobian(self, U, mu=None):
         assert isinstance(U, NumpyVectorArray)
         assert U in self.source and len(U) == 1
         mu = self.parse_parameter(mu)

@@ -129,7 +129,6 @@ def discretize_nonlinear_instationary_advection_fv(analytical_problem, diameter=
     parameter_space = p.parameter_space if hasattr(p, 'parameter_space') else None
     time_stepper = ExplicitEulerTimeStepper(nt=nt)
 
-
     discretization = InstationaryDiscretization(operator=L, rhs=F, initial_data=I, T=p.T, products=products,
                                                 time_stepper=time_stepper,
                                                 parameter_space=parameter_space, visualizer=visualizer,
