@@ -14,9 +14,10 @@ from pymor.vectorarrays.interfaces import VectorArrayInterface, _INDEXTYPES
 class VectorInterface(BasicInterface):
     """Interface for vectors.
 
-    This Interface is mainly intended to be used in conjunction with |ListVectorArray|. In general, all
-    pyMOR objects operate on |VectorArrays| instead of single vectors! All methods of the interface have
-    a direct counterpart in the |VectorArray| interface.
+    This Interface is intended to be used in conjunction with |ListVectorArray|.
+    All pyMOR algorithms operate on |VectorArrays| instead of single vectors!
+    All methods of the interface have a direct counterpart in the |VectorArray|
+    interface.
     """
 
     @abstractclassmethod
@@ -245,12 +246,25 @@ class NumpyVector(CopyOnWriteVector):
 
 
 class ListVectorArray(VectorArrayInterface):
-    """|VectorArray| implementation via a python list of vectors.
+    """|VectorArray| implementation via a Python list of vectors.
 
-    The subtypes a ListVectorArray can have are tuples
-    `(vector_type, vector_subtype)` where `vector_type` is a
-    subclass of VectorInterface and `vector_subtype` is a valid
-    subtype for `vector_type`.
+    The :attr:`subtypes <pymor.vectorarrays.interfaces.VectorArrayInterface.subtype>`
+    a |ListVectorArray| can have are tuples `(vector_type, vector_subtype)`
+    where `vector_type` is a subclass of :class:`VectorInterface` and
+    `vector_subtype` is a valid subtype for `vector_type`.
+
+    Parameters
+    ----------
+    vectors
+        List of :class:`vectors <VectorInterface>` contained in
+        the array.
+    subtype
+        If `vectors` is empty, the array's
+        :attr:`~pymor.vectorarrays.interfaces.VectorArrayInterface.subtype`
+        must be provided, as the subtype cannot be derived from `vectors`
+        in this case.
+    copy
+        If `True`, make copies of the vectors in `vectors`.
     """
 
     _NONE = ()
@@ -348,56 +362,6 @@ class ListVectorArray(VectorArrayInterface):
             thelist = self._list
             remaining = sorted(set(range(len(self))) - set(ind))
             self._list = [thelist[i] for i in remaining]
-
-    def replace(self, other, ind=None, o_ind=None, remove_from_other=False):
-        assert self.check_ind_unique(ind)
-        assert other.check_ind(o_ind)
-        assert other.space == self.space
-        assert other is not self or not remove_from_other
-
-        if ind is None:
-            c = self.empty()
-            c.append(other, o_ind=o_ind, remove_from_other=remove_from_other)
-            assert len(c) == len(self)
-            self._list = c._list
-        elif isinstance(ind, Number):
-            if o_ind is None:
-                assert len(other._list) == 1
-                if not remove_from_other:
-                    self._list[ind] = other._list[0].copy()
-                else:
-                    self._list[ind] = other._list.pop()
-            else:
-                if not isinstance(o_ind, Number):
-                    assert len(o_ind) == 1
-                    o_ind = o_ind[0]
-                if not remove_from_other:
-                    self._list[ind] = other._list[o_ind].copy()
-                else:
-                    self._list[ind] = other._list.pop(o_ind)
-        else:
-            if isinstance(o_ind, Number):
-                assert len(ind) == 1
-                if not remove_from_other:
-                    self._list[ind[0]] = other._list[o_ind].copy()
-                else:
-                    self._list[ind[0]] = other._list.pop(o_ind)
-            else:
-                o_ind = range(len(other)) if o_ind is None else o_ind
-                assert len(ind) == len(o_ind)
-                if not remove_from_other:
-                    l = self._list
-                    # if other is self, we have to make a copy of our list, to prevent
-                    # messing things up, e.g. when swapping vectors
-                    other_list = list(l) if other is self else other._list
-                    for i, oi in zip(ind, o_ind):
-                        l[i] = other_list[oi].copy()
-                else:
-                    for i, oi in zip(ind, o_ind):
-                        self._list[i] = other._list[oi]
-                    other_list = other._list
-                    remaining = sorted(set(range(len(other_list))) - set(o_ind))
-                    other._list = [other_list[i] for i in remaining]
 
     def scal(self, alpha, ind=None):
         assert self.check_ind_unique(ind)

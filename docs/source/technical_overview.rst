@@ -13,9 +13,8 @@ operating on objects of the following types:
 |VectorArrays|
     Vector arrays are ordered collections of vectors. Each vector of the array
     must be of the same |dimension|. Subsets of vectors can be
-    |copied| to a new array, |appended| to an existing array, |removed| from the
-    array or |replaced| by vectors of a different array.
-    Basic linear algebra operations can be performed on the vectors of the
+    |copied| to a new array, |appended| to an existing array or |removed| from the
+    array. Basic linear algebra operations can be performed on the vectors of the
     array: vectors can be |scaled| in-place, the BLAS |axpy| operation is
     supported and |scalar products| between vectors can be formed. Linear
     combinations of vectors can be formed using the |lincomb| method. Moreover,
@@ -66,7 +65,6 @@ operating on objects of the following types:
     .. |lincomb|          replace:: :meth:`~pymor.vectorarrays.interfaces.VectorArrayInterface.lincomb`
     .. |make_array|       replace:: :meth:`~pymor.vectorarrays.interfaces.VectorArrayInterface.make_array`
     .. |removed|          replace:: :meth:`deleted <pymor.vectorarrays.interfaces.VectorArrayInterface.remove>`
-    .. |replaced|         replace:: :meth:`replaced <pymor.vectorarrays.interfaces.VectorArrayInterface.replace>`
     .. |scalar products|  replace:: :meth:`scalar products <pymor.vectorarrays.interfaces.VectorArrayInterface.dot>`
     .. |scaled|           replace:: :meth:`scaled <pymor.vectorarrays.interfaces.VectorArrayInterface.scal>`
     .. |subtype|          replace:: :attr:`~pymor.vectorarrays.interfaces.VectorSpace.subtype`
@@ -185,13 +183,14 @@ subsequent |solve| call, but not its result.
 
 Of course, in many situations one may wish to change properties of an immutable
 object, e.g. the number of timesteps for a given discretization. This can be
-easily achieved using the `~pymor.core.interfaces.BasicInterface.with_` method
-every immutable object has: a call of the form ``o.with_(a=x, b=y)`` will return
-a copy of `o` in which the attribute `a` now has the value `x` and the
-attribute `b` the value `y`. It can be generally assumed that calls to
-`~pymor.core.interfaces.BasicInterface.with_` are inexpensive. The set of
-allowed arguments can be found in the
-:attr:`~pymor.core.interfaces.BasicInterface.with_arguments` attribute.
+easily achieved using the
+:meth:`~pymor.core.interfaces.ImmutableInterface.with_` method every immutable
+object has: a call of the form ``o.with_(a=x, b=y)`` will return a copy of `o`
+in which the attribute `a` now has the value `x` and the attribute `b` the
+value `y`. It can be generally assumed that calls to
+:meth:`~pymor.core.interfaces.ImmutableInterface.with_` are inexpensive. The
+set of allowed arguments can be found in the
+:attr:`~pymor.core.interfaces.ImmutableInterface.with_arguments` attribute.
 
 All immutable classes in pyMOR and most other classes derive from
 |BasicInterface| which, through its meta class, provides several convenience

@@ -2,7 +2,7 @@
 pyMOR - Model Order Reduction with python
 #########################################
 
-`pyMOR <http://pymor.org>` is a software library for building model order
+`pyMOR <http://pymor.org>`_ is a software library for building model order
 reduction applications with the Python programming language.  Its main focus
 lies on the application of reduced basis methods to parameterized partial
 differential equations.  All algorithms in pyMOR are formulated in terms of
@@ -16,6 +16,7 @@ computing stack are provided for getting started quickly.
     getting_started
     technical_overview
     environment
+    release_notes
 
 API Documentation
 *****************

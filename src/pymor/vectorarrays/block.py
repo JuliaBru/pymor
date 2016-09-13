@@ -10,7 +10,26 @@ from pymor.vectorarrays.interfaces import VectorArrayInterface, VectorSpace
 
 
 class BlockVectorArray(VectorArrayInterface):
-    """|VectorArray| implementation
+    """|VectorArray| where each vector is a direct sum of sub-vectors.
+
+    Given a list of equal length |VectorArrays| `blocks`, this |VectorArray|
+    represents the direct sums of the vectors contained in the arrays.
+
+    The :attr:`~pymor.vectorarrays.interfaces.VectorArrayInterface.subtype`
+    of the array will be the tuple ::
+
+        (blocks[0].space, blocks[1].space, ..., blocks[-1].space).
+
+    :class:`BlockVectorArray` can be used in conjunction with
+    :class:`~pymor.operators.block.BlockOperator`.
+
+
+    Parameters
+    ----------
+    blocks
+        The list of sub-arrays.
+    copy
+        If `True`, copy all arrays contained in `blocks`.
     """
 
     def __init__(self, blocks, copy=False):
@@ -90,13 +109,6 @@ class BlockVectorArray(VectorArrayInterface):
         assert self.check_ind(ind)
         for block in self._blocks:
             block.remove(ind)
-
-    def replace(self, other, ind=None, o_ind=None, remove_from_other=False):
-        assert other in self.space
-        assert self.check_ind(ind)
-        assert other.check_ind(o_ind)
-        for block, o_block in zip(self._blocks, other._blocks):
-            block.replace(o_block, ind=ind, o_ind=o_ind, remove_from_other=remove_from_other)
 
     def scal(self, alpha, ind=None):
         for block in self._blocks:

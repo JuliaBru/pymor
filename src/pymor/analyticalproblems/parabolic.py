@@ -51,17 +51,18 @@ class ParabolicProblem(ImmutableInterface):
         `len(reaction_functions) == 1`, `reaction_functionals` is allowed
         to be `None`, in which case no parameter dependence is assumed.
     dirichlet_data
-        |Function| providing the Dirichlet boundary values in global coordinates.
+        |Function| providing the Dirichlet boundary values.
     neumann_data
-        |Function| providing the Neumann boundary values in global coordinates.
+        |Function| providing the Neumann boundary values
     robin_data
         Tuple of two |Functions| providing the Robin parameter and boundary values.
+
+    initial_data
+        |Function| providing the initial values.
+    T
+        The final time T.
     parameter_space
         |ParameterSpace| for the problem.
-    initial_data
-        |Function| providing the initial values in global coordinates.
-    T
-        The end time T.
     name
         Name of the problem.
 

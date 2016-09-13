@@ -21,7 +21,7 @@ from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 
 class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
-    """|Functional| representing the scalar product with an L2-|Function| for linear finite elements.
+    """Linear finite element |Functional| representing the inner product with an L2-|Function|.
 
     Boundary treatment can be performed by providing `boundary_info` and `dirichlet_data`,
     in which case the DOFs corresponding to Dirichlet boundaries are set to the values
@@ -36,7 +36,7 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
     grid
         |Grid| for which to assemble the functional.
     function
-        The |Function| with which to take the scalar product.
+        The |Function| with which to take the inner product.
     boundary_info
         |BoundaryInfo| determining the Dirichlet and Neumann boundaries or `None`.
         If `None`, no boundary treatment is performed.
@@ -47,8 +47,9 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
         |Function| providing the Neumann boundary values. If `None`,
         constant-zero is assumed.
     robin_data
-        Tuple of two |Functions| providing the Robin parameter and boundary values, see `RobinBoundaryOperator`.
-        If `None`, constant-zero for both functions is assumed.
+        Tuple of two |Functions| providing the Robin parameter and boundary values, see
+        :class:`RobinBoundaryOperator`.  If `None`, constant-zero for both functions is
+        assumed.
     order
         Order of the Gauss quadrature to use for numerical integration.
     name
@@ -141,7 +142,7 @@ class L2ProductFunctionalP1(NumpyMatrixBasedOperator):
 
 
 class L2ProductFunctionalQ1(NumpyMatrixBasedOperator):
-    """|Functional| representing the scalar product with an L2-|Function| for bilinear finite elements.
+    """Bilinear finite element |Functional| representing the inner product with an L2-|Function|.
 
     Boundary treatment can be performed by providing `boundary_info` and `dirichlet_data`,
     in which case the DOFs corresponding to Dirichlet boundaries are set to the values
@@ -156,7 +157,7 @@ class L2ProductFunctionalQ1(NumpyMatrixBasedOperator):
     grid
         |Grid| for which to assemble the functional.
     function
-        The |Function| with which to take the scalar product.
+        The |Function| with which to take the inner product.
     boundary_info
         |BoundaryInfo| determining the Dirichlet boundaries or `None`.
         If `None`, no boundary treatment is performed.
@@ -167,8 +168,9 @@ class L2ProductFunctionalQ1(NumpyMatrixBasedOperator):
         |Function| providing the Neumann boundary values. If `None`,
         constant-zero is assumed.
     robin_data
-        Tuple of two |Functions| providing the Robin parameter and boundary values, see `RobinBoundaryOperator`.
-        If `None`, constant-zero for both functions is assumed.
+        Tuple of two |Functions| providing the Robin parameter and boundary values, see
+        :class:`RobinBoundaryOperator`.  If `None`, constant-zero for both functions
+        is assumed.
     order
         Order of the Gauss quadrature to use for numerical integration.
     name
@@ -253,9 +255,6 @@ class L2ProductFunctionalQ1(NumpyMatrixBasedOperator):
 class L2ProductP1(NumpyMatrixBasedOperator):
     """|Operator| representing the L2-product between linear finite element functions.
 
-    To evaluate the product use the :meth:`~pymor.operators.interfaces.OperatorInterface.apply2`
-    method.
-
     The current implementation works in one and two dimensions, but can be trivially
     extended to arbitrary dimensions.
 
@@ -267,16 +266,16 @@ class L2ProductP1(NumpyMatrixBasedOperator):
         |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     dirichlet_clear_rows
         If `True`, set the rows of the system matrix corresponding to Dirichlet boundary
-        DOFs to zero. (Useful when used as mass matrix in time-stepping schemes.)
+        DOFs to zero.
     dirichlet_clear_columns
         If `True`, set columns of the system matrix corresponding to Dirichlet boundary
-        DOFs to zero (to obtain a symmetric matrix).
+        DOFs to zero.
     dirichlet_clear_diag
         If `True`, also set diagonal entries corresponding to Dirichlet boundary DOFs to
-        zero (e.g. for affine decomposition). Otherwise, if either `dirichlet_clear_rows` or
-        `dirichlet_clear_columns` is `True`, the diagonal entries are set to one.
+        zero. Otherwise, if either `dirichlet_clear_rows` or `dirichlet_clear_columns` is
+        `True`, the diagonal entries are set to one.
     coefficient_function
-        Coefficient |Function| for product with ``shape_range == ()``.
+        Coefficient |Function| for product with `shape_range == ()`.
         If `None`, constant one is assumed.
     name
         The name of the product.
@@ -354,9 +353,6 @@ class L2ProductP1(NumpyMatrixBasedOperator):
 class L2ProductQ1(NumpyMatrixBasedOperator):
     """|Operator| representing the L2-product between bilinear finite element functions.
 
-    To evaluate the product use the :meth:`~pymor.operators.interfaces module.OperatorInterface.apply2`
-    method.
-
     The current implementation works in two dimensions, but can be trivially
     extended to arbitrary dimensions.
 
@@ -368,16 +364,16 @@ class L2ProductQ1(NumpyMatrixBasedOperator):
         |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     dirichlet_clear_rows
         If `True`, set the rows of the system matrix corresponding to Dirichlet boundary
-        DOFs to zero. (Useful when used as mass matrix in time-stepping schemes.)
+        DOFs to zero.
     dirichlet_clear_columns
         If `True`, set columns of the system matrix corresponding to Dirichlet boundary
-        DOFs to zero (to obtain a symmetric matrix).
+        DOFs to zero.
     dirichlet_clear_diag
         If `True`, also set diagonal entries corresponding to Dirichlet boundary DOFs to
-        zero (e.g. for affine decomposition). Otherwise, if either `dirichlet_clear_rows` or
-        `dirichlet_clear_columns` is `True`, the diagonal entries are set to one.
+        zero. Otherwise, if either `dirichlet_clear_rows` or `dirichlet_clear_columns`
+        is `True`, the diagonal entries are set to one.
     coefficient_function
-        Coefficient |Function| for product with ``shape_range == ()``.
+        Coefficient |Function| for product with `shape_range == ()`.
         If `None`, constant one is assumed.
     name
         The name of the product.
@@ -680,8 +676,8 @@ class DiffusionOperatorP1(NumpyMatrixBasedOperator):
     boundary_info
         |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     diffusion_function
-        The |Function| `d(x)` with ``shape_range == ()`` or
-        ``shape_range = (grid.dim_outer, grid.dim_outer)``. If `None`, constant one is
+        The |Function| `d(x)` with `shape_range == ()` or
+        `shape_range = (grid.dim, grid.dim)`. If `None`, constant one is
         assumed.
     diffusion_constant
         The constant `c`. If `None`, `c` is set to one.
@@ -691,7 +687,7 @@ class DiffusionOperatorP1(NumpyMatrixBasedOperator):
         be set to zero.
     dirichlet_clear_diag
         If `True`, also set diagonal entries corresponding to Dirichlet boundary DOFs to
-        zero (e.g. for affine decomposition). Otherwise they are set to one.
+        zero. Otherwise they are set to one.
     name
         Name of the operator.
     """
@@ -704,8 +700,8 @@ class DiffusionOperatorP1(NumpyMatrixBasedOperator):
         assert grid.reference_element(0) in {triangle, line}, 'A simplicial grid is expected!'
         assert diffusion_function is None \
             or (isinstance(diffusion_function, FunctionInterface) and
-                diffusion_function.dim_domain == grid.dim_outer and
-                diffusion_function.shape_range == () or diffusion_function.shape_range == (grid.dim_outer,) * 2)
+                diffusion_function.dim_domain == grid.dim and
+                diffusion_function.shape_range == () or diffusion_function.shape_range == (grid.dim,) * 2)
         self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
         self.boundary_info = boundary_info
@@ -800,8 +796,8 @@ class DiffusionOperatorQ1(NumpyMatrixBasedOperator):
     boundary_info
         |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     diffusion_function
-        The |Function| `d(x)` with ``shape_range == ()`` or
-        ``shape_range = (grid.dim_outer, grid.dim_outer)``. If `None`, constant one is
+        The |Function| `d(x)` with `shape_range == ()` or
+        `shape_range = (grid.dim, grid.dim)`. If `None`, constant one is
         assumed.
     diffusion_constant
         The constant `c`. If `None`, `c` is set to one.
@@ -811,7 +807,7 @@ class DiffusionOperatorQ1(NumpyMatrixBasedOperator):
         be set to zero.
     dirichlet_clear_diag
         If `True`, also set diagonal entries corresponding to Dirichlet boundary DOFs to
-        zero (e.g. for affine decomposition). Otherwise they are set to one.
+        zero. Otherwise they are set to one.
     name
         Name of the operator.
     """
@@ -824,8 +820,8 @@ class DiffusionOperatorQ1(NumpyMatrixBasedOperator):
         assert grid.reference_element(0) in {square}, 'A square grid is expected!'
         assert diffusion_function is None \
             or (isinstance(diffusion_function, FunctionInterface) and
-                diffusion_function.dim_domain == grid.dim_outer and
-                diffusion_function.shape_range == () or diffusion_function.shape_range == (grid.dim_outer,) * 2)
+                diffusion_function.dim_domain == grid.dim and
+                diffusion_function.shape_range == () or diffusion_function.shape_range == (grid.dim,) * 2)
         self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
         self.boundary_info = boundary_info
@@ -903,13 +899,13 @@ class DiffusionOperatorQ1(NumpyMatrixBasedOperator):
 
 
 class AdvectionOperatorP1(NumpyMatrixBasedOperator):
-    """Advection |Operator| for linear finite elements.
+    """Linear advection |Operator| for linear finite elements.
 
     The operator is of the form ::
 
         (Lu)(x) = c ∇ ⋅ [ v(x) u(x) ]
 
-    The function `v` is vector-values.
+    The function `v` is vector-valued.
     The current implementation works in one and two dimensions, but can be trivially
     extended to arbitrary dimensions.
 
@@ -920,7 +916,7 @@ class AdvectionOperatorP1(NumpyMatrixBasedOperator):
     boundary_info
         |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     advection_function
-        The |Function| `v(x)` with ``shape_range = (grid.dim_outer, )``.
+        The |Function| `v(x)` with `shape_range = (grid.dim, )`.
         If `None`, constant one is assumed.
     advection_constant
         The constant `c`. If `None`, `c` is set to one.
@@ -930,7 +926,7 @@ class AdvectionOperatorP1(NumpyMatrixBasedOperator):
         be set to zero.
     dirichlet_clear_diag
         If `True`, also set diagonal entries corresponding to Dirichlet boundary DOFs to
-        zero (e.g. for affine decomposition). Otherwise they are set to one.
+        zero. Otherwise they are set to one.
     name
         Name of the operator.
     """
@@ -943,8 +939,8 @@ class AdvectionOperatorP1(NumpyMatrixBasedOperator):
         assert grid.reference_element(0) in {triangle, line}, 'A simplicial grid is expected!'
         assert advection_function is None \
             or (isinstance(advection_function, FunctionInterface) and
-                advection_function.dim_domain == grid.dim_outer and
-                advection_function.shape_range == (grid.dim_outer,))
+                advection_function.dim_domain == grid.dim and
+                advection_function.shape_range == (grid.dim,))
         self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
         self.boundary_info = boundary_info
@@ -1029,7 +1025,7 @@ class AdvectionOperatorP1(NumpyMatrixBasedOperator):
 
 
 class AdvectionOperatorQ1(NumpyMatrixBasedOperator):
-    """Advection |Operator| for bilinear finite elements.
+    """Linear advection |Operator| for bilinear finite elements.
 
     The operator is of the form ::
 
@@ -1046,7 +1042,7 @@ class AdvectionOperatorQ1(NumpyMatrixBasedOperator):
     boundary_info
         |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     advection_function
-        The |Function| `v(x)` with ``shape_range = (grid.dim_outer, )``.
+        The |Function| `v(x)` with `shape_range = (grid.dim, )`.
         If `None`, constant one is assumed.
     advection_constant
         The constant `c`. If `None`, `c` is set to one.
@@ -1056,7 +1052,7 @@ class AdvectionOperatorQ1(NumpyMatrixBasedOperator):
         be set to zero.
     dirichlet_clear_diag
         If `True`, also set diagonal entries corresponding to Dirichlet boundary DOFs to
-        zero (e.g. for affine decomposition). Otherwise they are set to one.
+        zero. Otherwise they are set to one.
     name
         Name of the operator.
     """
@@ -1069,8 +1065,8 @@ class AdvectionOperatorQ1(NumpyMatrixBasedOperator):
         assert grid.reference_element(0) in {square}, 'A square grid is expected!'
         assert advection_function is None \
             or (isinstance(advection_function, FunctionInterface) and
-                advection_function.dim_domain == grid.dim_outer and
-                advection_function.shape_range == (grid.dim_outer,))
+                advection_function.dim_domain == grid.dim and
+                advection_function.shape_range == (grid.dim,))
         self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
         self.boundary_info = boundary_info
@@ -1158,21 +1154,21 @@ class RobinBoundaryOperator(NumpyMatrixBasedOperator):
 
         -[ d(x) ∇u(x) ] ⋅ n(x) = c(x) (u(x) - g(x))
 
-    `d` and `n` are the diffusion function (see `DiffusionOperatorP1`) and the
-    unit outer normal in `x`, while `c` is the (scalar) Robin parameter
+    `d` and `n` are the diffusion function (see :class:`DiffusionOperatorP1`) and
+    the unit outer normal in `x`, while `c` is the (scalar) Robin parameter
     function and `g` is the (also scalar) Robin boundary value function.
 
     Parameters
     ----------
     grid
-        The |Grid| over which to assemble the operator
+        The |Grid| over which to assemble the operator.
     boundary_info
-        |BoundaryInfo| for the treatment of Dirichlet boundary conditions
+        |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     robin_data
         Tuple providing two |Functions| that represent the Robin parameter and boundary
         value function. If `None`, the resulting operator is zero.
     name
-        Name of the operator
+        Name of the operator.
     """
 
     sparse = True
@@ -1180,9 +1176,9 @@ class RobinBoundaryOperator(NumpyMatrixBasedOperator):
     def __init__(self, grid, boundary_info, robin_data=None, order=2, solver_options=None, name=None):
         assert robin_data is None or (isinstance(robin_data, tuple) and len(robin_data) == 2)
         assert robin_data is None or all([isinstance(f, FunctionInterface)
-                                          and f.dim_domain == grid.dim_outer
+                                          and f.dim_domain == grid.dim
                                           and (f.shape_range == ()
-                                               or f.shape_range == (grid.dim_outer,)
+                                               or f.shape_range == (grid.dim,)
                                                ) for f in robin_data])
         self.source = self.range = NumpyVectorSpace(grid.size(grid.dim))
         self.grid = grid
@@ -1232,7 +1228,7 @@ class RobinBoundaryOperator(NumpyMatrixBasedOperator):
 
 
 class InterpolationOperator(NumpyMatrixBasedOperator):
-    """Lagrange interpolation operator for continuous finite element spaces.
+    """Vector-like Lagrange interpolation |Operator| for continuous finite element spaces.
 
     Parameters
     ----------
@@ -1246,7 +1242,7 @@ class InterpolationOperator(NumpyMatrixBasedOperator):
     linear = True
 
     def __init__(self, grid, function):
-        assert function.dim_domain == grid.dim_outer
+        assert function.dim_domain == grid.dim
         assert function.shape_range == ()
         self.grid = grid
         self.function = function

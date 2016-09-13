@@ -21,18 +21,16 @@ class OperatorBase(OperatorInterface):
     from this class.
     """
 
-    def apply2(self, V, U, U_ind=None, V_ind=None, mu=None, product=None):
+    def apply2(self, V, U, U_ind=None, V_ind=None, mu=None):
         mu = self.parse_parameter(mu)
         assert isinstance(V, VectorArrayInterface)
         assert isinstance(U, VectorArrayInterface)
         U_ind = None if U_ind is None else np.array(U_ind, copy=False, dtype=np.int, ndmin=1)
         V_ind = None if V_ind is None else np.array(V_ind, copy=False, dtype=np.int, ndmin=1)
         AU = self.apply(U, ind=U_ind, mu=mu)
-        if product is not None:
-            AU = product.apply(AU)
         return V.dot(AU, ind=V_ind)
 
-    def pairwise_apply2(self, V, U, U_ind=None, V_ind=None, mu=None, product=None):
+    def pairwise_apply2(self, V, U, U_ind=None, V_ind=None, mu=None):
         mu = self.parse_parameter(mu)
         assert isinstance(V, VectorArrayInterface)
         assert isinstance(U, VectorArrayInterface)
@@ -42,8 +40,6 @@ class OperatorBase(OperatorInterface):
         lv = len(V_ind) if V_ind is not None else len(V)
         assert lu == lv
         AU = self.apply(U, ind=U_ind, mu=mu)
-        if product is not None:
-            AU = product.apply(AU)
         return V.pairwise_dot(AU, ind=V_ind)
 
     def jacobian(self, U, mu=None):
@@ -228,11 +224,18 @@ class OperatorBase(OperatorInterface):
 
 
 class ProjectedOperator(OperatorBase):
-    """Genric |Operator| for representing the projection of an |Operator| to a subspace.
+    """Generic |Operator| representing the projection of an |Operator| to a subspace.
 
-    This class is not intended to be instantiated directly. Instead, you should use
-    the :meth:`~pymor.operators.interfaces.OperatorInterface.projected` method of the given
-    |Operator|.
+    This operator is implemented as the concatenation of the linear combination with
+    `source_basis`, application of the original `operator` and projection onto
+    `range_basis`. As such, this operator can be used to obtain a reduced basis
+    projection of any given |Operator|. However, no offline/online decomposition is
+    performed, so this operator is mainly useful for testing before implementing
+    offline/online decomposition for a specific application.
+
+    This operator is instantiated in the default implementation of
+    :meth:`~pymor.operators.interfaces.OperatorInterface.projected` in
+    :class:`OperatorBase` for parametric or nonlinear operators.
 
     Parameters
     ----------

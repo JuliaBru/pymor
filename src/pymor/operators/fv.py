@@ -36,7 +36,7 @@ class NumericalConvectiveFluxInterface(ImmutableInterface, Parametric):
 
     The flux evaluation is vectorized and happens in two stages:
       1. `evaluate_stage1` receives a |NumPy array| `U` of all values which
-         appear as `U_inner` or `U_outer` for the edges the flux shall be
+         appear as `U_inner` or `U_outer` for all edges the flux shall be
          evaluated at and returns a `tuple` of |NumPy arrays|
          each of the same length as `U`.
       2. `evaluate_stage2` receives the reordered `stage1_data` for each
@@ -68,7 +68,7 @@ class LaxFriedrichsFlux(NumericalConvectiveFluxInterface):
     """Lax-Friedrichs numerical flux.
 
     If `f` is the analytical flux, the Lax-Friedrichs flux `F` is given
-    by ::
+    by::
 
       F(U_in, U_out, normal, vol) = vol * [normal⋅(f(U_in) + f(U_out))/2 + (U_in - U_out)/(2*λ)]
 
@@ -97,7 +97,7 @@ class LaxFriedrichsFlux(NumericalConvectiveFluxInterface):
 class SimplifiedEngquistOsherFlux(NumericalConvectiveFluxInterface):
     """Engquist-Osher numerical flux. Simplified Implementation for special case.
 
-    For the definition of the Enquist-Osher flux see :class:`EngquistOsherFlux`.
+    For the definition of the Engquist-Osher flux see :class:`EngquistOsherFlux`.
     This class provides a faster and more accurate implementation for the special
     case that `f(0) == 0` and the derivative of `f` only changes sign at `0`.
 
@@ -133,7 +133,7 @@ class EngquistOsherFlux(NumericalConvectiveFluxInterface):
     """Engquist-Osher numerical flux.
 
     If `f` is the analytical flux, and `f'` its derivative, the Engquist-Osher flux is
-    given by ::
+    given by::
 
       F(U_in, U_out, normal, vol) = vol * [c^+(U_in, normal)  +  c^-(U_out, normal)]
 
@@ -234,9 +234,6 @@ class NonlinearAdvectionOperator(OperatorBase):
     The operator is of the form ::
 
         L(u, mu)(x) = ∇ ⋅ f(u(x), mu)
-
-    .. note ::
-        For Neumann boundaries, currently only zero boundary values are implemented.
 
     Parameters
     ----------
@@ -766,9 +763,6 @@ class LinearAdvectionLaxFriedrichs(NumpyMatrixBasedOperator):
 class L2Product(NumpyMatrixBasedOperator):
     """|Operator| representing the L2-product between finite volume functions.
 
-    To evaluate the product use the :meth:`~pymor.operators.interfaces module.OperatorInterface.apply2`
-    method.
-
     Parameters
     ----------
     grid
@@ -793,9 +787,9 @@ class L2Product(NumpyMatrixBasedOperator):
 
 
 class L2ProductFunctional(NumpyMatrixBasedOperator):
-    """Finite volume |Functional| representing the scalar product with an L2-|Function|.
+    """Finite volume |Functional| representing the inner product with an L2-|Function|.
 
-    Additionally boundary conditions can be enforced by providing `dirichlet_data`
+    Additionally, boundary conditions can be enforced by providing `dirichlet_data`
     and `neumann_data` functions.
 
     Parameters
@@ -803,7 +797,7 @@ class L2ProductFunctional(NumpyMatrixBasedOperator):
     grid
         |Grid| for which to assemble the functional.
     function
-        The |Function| with which to take the scalar product or `None`.
+        The |Function| with which to take the inner product or `None`.
     boundary_info
         |BoundaryInfo| determining the Dirichlet and Neumann boundaries or `None`.
         If `None`, no boundary treatment is performed.
@@ -893,7 +887,7 @@ class L2ProductFunctional(NumpyMatrixBasedOperator):
 
 
 class DiffusionOperator(NumpyMatrixBasedOperator):
-    """Finite Voluem Diffusion |Operator|.
+    """Finite Volume Diffusion |Operator|.
 
     The operator is of the form ::
 
@@ -906,7 +900,7 @@ class DiffusionOperator(NumpyMatrixBasedOperator):
     boundary_info
         |BoundaryInfo| for the treatment of Dirichlet boundary conditions.
     diffusion_function
-        The the scalar-valued |Function| `d(x)`. If `None`, constant one is assumed.
+        The scalar-valued |Function| `d(x)`. If `None`, constant one is assumed.
     diffusion_constant
         The constant `c`. If `None`, `c` is set to one.
     name
@@ -921,7 +915,7 @@ class DiffusionOperator(NumpyMatrixBasedOperator):
         assert isinstance(grid, AffineGridWithOrthogonalCentersInterface)
         assert diffusion_function is None \
             or (isinstance(diffusion_function, FunctionInterface) and
-                diffusion_function.dim_domain == grid.dim_outer and
+                diffusion_function.dim_domain == grid.dim and
                 diffusion_function.shape_range == ())
         self.grid = grid
         self.boundary_info = boundary_info
