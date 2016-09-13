@@ -15,10 +15,15 @@ class ParabolicProblem(ImmutableInterface):
 
     The problem consists in solving ::
 
-    |                      Kd                                   Kv                            Kr
-    | ∂_t u(x, t, μ) - ∇ ⋅ ∑ θ_k(μ) ⋅ d_k(x) ∇ u(x, t, μ) + ∇ ⋅ ∑ θ_{v,k}(μ) v_k(x) u(x, μ) + ∑ θ_{r,k}(μ) r_k(x) u(x, μ) = f(x, t, μ)
-    |                     k=0                                  k=0                           k=0
-    |                                                                                                          u(x, 0, μ) = u_0(x, μ)
+    |                      Kd                                        Kv
+    | ∂_t u(x, t, μ) - ∇ ⋅ ∑  θ_{d,k}(μ) ⋅ d_k(x) ∇ u(x, t, μ) + ∇ ⋅ ∑  θ_{v,k}(μ) v_k(x) u(x, t, μ)
+    |                     k=0                                       k=0
+    |
+    |                                                                Kr
+    |                                                              + ∑  θ_{r,k}(μ) r_k(x) u(x, t, μ) = f(x, t, μ)
+    |                                                               k=0
+    |
+    |                                                                                     u(x, 0, μ) = u_0(x, μ)
 
     for u with t in [0, T], x in Ω.
 
@@ -27,25 +32,25 @@ class ParabolicProblem(ImmutableInterface):
     domain
         A |DomainDescription| of the domain the problem is posed on.
     rhs
-        The |Function| f(x, μ). `rhs.dim_domain` has to agree with the
+        The |Function| f(x, t, μ). `rhs.dim_domain` has to agree with the
         dimension of `domain`, whereas `rhs.shape_range` has to be `()`.
     diffusion_functions
         List containing the |Functions| d_k(x), each having `shape_range`
         of either `()` or `(dim domain, dim domain)`.
     diffusion_functionals
-        List containing the |ParameterFunctionals| θ_k(μ). If
+        List containing the |ParameterFunctionals| θ_{d,k}(μ). If
         `len(diffusion_functions) == 1`, `diffusion_functionals` is allowed
         to be `None`, in which case no parameter dependence is assumed.
     advection_functions
         List containing the |Functions| v_k(x), each having `shape_range`
-        of `(dim domain, )`.
+        of `(dim domain,)`.
     advection_functionals
         List containing the |ParameterFunctionals| θ_{v,k}(μ). If
         `len(advection_functions) == 1`, `advection_functionals` is allowed
         to be `None`, in which case no parameter dependence is assumed.
     reaction_functions
         List containing the |Functions| r_k(x), each having `shape_range`
-        of `tuple()`.
+        of `()`.
     reaction_functionals
         List containing the |ParameterFunctionals| θ_{r,k}(μ). If
         `len(reaction_functions) == 1`, `reaction_functionals` is allowed
@@ -53,10 +58,9 @@ class ParabolicProblem(ImmutableInterface):
     dirichlet_data
         |Function| providing the Dirichlet boundary values.
     neumann_data
-        |Function| providing the Neumann boundary values
+        |Function| providing the Neumann boundary values.
     robin_data
         Tuple of two |Functions| providing the Robin parameter and boundary values.
-
     initial_data
         |Function| providing the initial values.
     T
@@ -93,7 +97,6 @@ class ParabolicProblem(ImmutableInterface):
                  dirichlet_data=None, neumann_data=None, robin_data=None,
                  initial_data=ConstantFunction(dim_domain=2), T=1,
                  parameter_space=None, name=None):
-
         assert diffusion_functions is None or isinstance(diffusion_functions, (tuple, list))
         assert advection_functions is None or isinstance(advection_functions, (tuple, list))
         assert reaction_functions is None or isinstance(reaction_functions, (tuple, list))
@@ -112,7 +115,6 @@ class ParabolicProblem(ImmutableInterface):
         if (diffusion_functions is None and advection_functions is None and reaction_functions is None):
             diffusion_functions = (ConstantFunction(dim_domain=2),)
 
-
         # dim_domain:
         if diffusion_functions is not None:
             dim_domain = diffusion_functions[0].dim_domain
@@ -127,7 +129,6 @@ class ParabolicProblem(ImmutableInterface):
         if reaction_functions is not None:
             for f in reaction_functions:
                 assert f.dim_domain == dim_domain
-
 
         assert dirichlet_data is None or dirichlet_data.dim_domain == dim_domain
         assert neumann_data is None or neumann_data.dim_domain == dim_domain
